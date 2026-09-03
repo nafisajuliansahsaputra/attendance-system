@@ -59,32 +59,32 @@ export const demoCards = [
 ] as const;
 
 export const demoFaces = [
-  { id: "alya" as const, label: "Alya", detail: "Subjek kamera A" },
-  { id: "bima" as const, label: "Bima", detail: "Subjek kamera B" },
-  { id: "no-face" as const, label: "Tidak ada wajah", detail: "Frame kosong" },
-  { id: "low-quality" as const, label: "Frame buram", detail: "Quality gate gagal" },
+  { id: "alya" as const, label: "Alya", detail: "Wajah siswa A" },
+  { id: "bima" as const, label: "Bima", detail: "Wajah siswa B" },
+  { id: "no-face" as const, label: "Tidak ada wajah", detail: "Kamera tidak menangkap wajah" },
+  { id: "low-quality" as const, label: "Gambar buram", detail: "Kualitas gambar tidak memenuhi syarat" },
 ] as const;
 
 export const demoEnvironments = [
   {
     id: "arrival-open" as const,
     label: "Masuk · 07:20",
-    detail: "Sesi aktif, masih tepat waktu",
+    detail: "Jadwal aktif, masih tepat waktu",
   },
   {
     id: "arrival-late" as const,
     label: "Masuk · 08:10",
-    detail: "Sesi aktif, melewati batas terlambat",
+    detail: "Jadwal aktif, melewati batas terlambat",
   },
   {
     id: "dhuha-x" as const,
     label: "Dhuha · Kelas X",
-    detail: "Hanya siswa kelas X yang menjadi target",
+    detail: "Hanya siswa kelas X yang menjadi sasaran",
   },
   {
     id: "no-session" as const,
-    label: "Tidak ada sesi",
-    detail: "Tidak ada jadwal aktif saat scan",
+    label: "Tidak ada jadwal",
+    detail: "Tidak ada jadwal absensi aktif saat kartu ditempelkan",
   },
 ] as const;
 
