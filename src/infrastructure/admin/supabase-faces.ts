@@ -12,7 +12,40 @@ const enrollmentResultSchema = z.object({
   enrolledAt: z.string().min(1),
 });
 
+const targetSchema = z.object({
+  studentId: z.string().uuid(),
+  nis: z.string(),
+  fullName: z.string().min(1),
+  active: z.boolean(),
+  classId: z.string().uuid().nullable().optional(),
+  classCode: z.string().nullable().optional(),
+  className: z.string().nullable().optional(),
+  faceProfile: z
+    .object({
+      id: z.string().uuid(),
+      modelName: z.string().min(1),
+      modelVersion: z.string().min(1),
+      qualityScore: z.number().min(0).max(1).nullable().optional(),
+      templateFingerprint: z.string().nullable().optional(),
+      enrolledAt: z.string().min(1),
+    })
+    .nullable(),
+  schoolDate: z.string().date(),
+});
+
 export type FaceEnrollmentResult = z.infer<typeof enrollmentResultSchema>;
+export type FaceEnrollmentTarget = z.infer<typeof targetSchema>;
+
+export async function getAdminFaceEnrollmentTarget(input: {
+  actorUserId: string;
+  studentId: string;
+}): Promise<FaceEnrollmentTarget> {
+  const raw = await callSupabaseAdminRpc<unknown>("get_admin_face_enrollment_target", {
+    p_actor_user_id: input.actorUserId,
+    p_student_id: input.studentId,
+  });
+  return targetSchema.parse(raw);
+}
 
 export async function enrollAdminFaceProfile(input: {
   actorUserId: string;
