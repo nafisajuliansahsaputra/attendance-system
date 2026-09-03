@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildDemoAttempt } from "@/demo/scenarios";
+import { buildDemoAttempt } from "../../demo/scenarios";
 import type { AttendanceAttemptPersistence } from "./persistence";
 import { processResolvedAttendanceAttempt } from "./process-resolved-attempt";
 
