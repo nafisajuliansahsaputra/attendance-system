@@ -53,6 +53,7 @@ export interface SessionResolution {
 
 export interface ResolvedAttendanceAttempt {
   requestId: string;
+  institutionId: string;
   deviceId: string;
   occurredAt: string;
   card: CardResolution;
