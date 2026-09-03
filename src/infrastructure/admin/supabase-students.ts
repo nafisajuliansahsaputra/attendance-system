@@ -46,6 +46,17 @@ export function parseAdminStudentDirectory(raw: unknown): AdminStudentDirectoryR
   return z.array(directoryRowSchema).parse(raw);
 }
 
+export function parseTransferStudentEnrollmentResult(
+  raw: unknown,
+): TransferStudentEnrollmentResult {
+  const parsed = transferResultSchema.parse(raw);
+
+  return {
+    ...parsed,
+    previousEnrollmentId: parsed.previousEnrollmentId ?? undefined,
+  };
+}
+
 export async function getAdminStudentDirectory(input: {
   actorUserId: string;
   search?: string;
@@ -90,10 +101,6 @@ export async function transferStudentEnrollment(input: {
     p_effective_on: input.effectiveOn,
     p_note: input.note?.trim() || null,
   });
-  const parsed = transferResultSchema.parse(raw);
 
-  return {
-    ...parsed,
-    previousEnrollmentId: parsed.previousEnrollmentId ?? undefined,
-  };
+  return parseTransferStudentEnrollmentResult(raw);
 }
