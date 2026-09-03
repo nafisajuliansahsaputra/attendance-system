@@ -3,7 +3,10 @@ import type {
   AttendanceContextResolver,
   AttendanceContextInput,
 } from "./context-resolver";
-import { buildResolvedAttemptFromContext } from "./context-resolver";
+import {
+  buildResolvedAttemptFromContext,
+  selectSingleSessionCandidate,
+} from "./context-resolver";
 import type { FaceVerifier } from "./face-verifier";
 import { processResolvedAttendanceAttempt } from "./process-resolved-attempt";
 
@@ -22,8 +25,9 @@ export interface ProcessAttendanceScanDependencies {
  * Canonical application orchestration for a raw device/simulator scan.
  *
  * Resolution gathers identity/session context, the face adapter performs 1:1
- * verification, the domain engine decides attendance truth, and persistence
- * records that decision. Hardware-specific code must not bypass this path.
+ * verification when the resolved session requires it, the domain engine decides
+ * attendance truth, and persistence records that decision. Hardware-specific
+ * code must not bypass this path.
  */
 export async function processAttendanceScan(
   input: ProcessAttendanceScanInput,
@@ -36,16 +40,22 @@ export async function processAttendanceScan(
     occurredAt: input.occurredAt,
   });
 
-  const face = context.card.student
-    ? await dependencies.faceVerifier.verify({
-        requestId: input.requestId,
-        student: context.card.student,
-        profile: context.faceProfile,
-        sampleReference: input.faceSampleReference,
-      })
-    : {
+  const session = selectSingleSessionCandidate(context.sessions);
+
+  const face = !context.card.student
+    ? {
         status: "error" as const,
-      };
+      }
+    : session && !session.faceVerificationRequired
+      ? {
+          status: "not_required" as const,
+        }
+      : await dependencies.faceVerifier.verify({
+          requestId: input.requestId,
+          student: context.card.student,
+          profile: context.faceProfile,
+          sampleReference: input.faceSampleReference,
+        });
 
   const attempt = buildResolvedAttemptFromContext({
     requestId: input.requestId,
