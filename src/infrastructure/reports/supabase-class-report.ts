@@ -1,5 +1,7 @@
 import { z } from "zod";
 import type { ClassAttendanceReport } from "../../application/reports/types";
+import { getAuthorizationContext } from "../auth/supabase-authorization";
+import { materializeSupabaseScheduleRange } from "../scheduling/supabase-schedule";
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
 const reportSchema = z.object({
@@ -56,6 +58,21 @@ export async function getClassAttendanceReport(input: {
   startDate: string;
   endDate: string;
 }): Promise<ClassAttendanceReport> {
+  const authorization = await getAuthorizationContext(
+    input.actorUserId,
+    input.startDate,
+  );
+
+  if (!authorization) {
+    throw new Error("AUTH_PROFILE_NOT_FOUND");
+  }
+
+  await materializeSupabaseScheduleRange({
+    institutionId: authorization.institutionId,
+    startDate: input.startDate,
+    endDate: input.endDate,
+  });
+
   const raw = await callSupabaseAdminRpc<unknown>("get_class_attendance_report", {
     p_actor_user_id: input.actorUserId,
     p_class_id: input.classId,
