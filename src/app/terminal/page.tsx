@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import { TerminalSimulator } from "@/components/terminal/TerminalSimulator";
+import { LiveRecruiterTerminal } from "@/components/terminal/LiveRecruiterTerminal";
 
 export const metadata: Metadata = {
-  title: "Virtual Hardware Terminal",
-  description:
-    "Input-driven recruiter demo for the Smart Attendance System canonical attendance engine.",
+  title: "Live Attendance Terminal",
 };
 
 export default function TerminalPage() {
-  return <TerminalSimulator />;
+  return <LiveRecruiterTerminal />;
 }
