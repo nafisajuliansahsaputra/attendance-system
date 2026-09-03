@@ -1,6 +1,6 @@
 # Target Architecture
 
-**Status:** Proposed baseline architecture  
+**Status:** Accepted baseline architecture — implementation started 2026-09-03  
 **Source of truth:** `docs/00-SOURCE-OF-TRUTH.md`
 
 This architecture is intentionally designed so the system can be fully developed and demonstrated without hardware, while remaining directly integrable with Arduino/ESP32-class devices later.
@@ -19,21 +19,32 @@ This architecture is intentionally designed so the system can be fully developed
 
 ---
 
-## 2. Proposed technology stack
-
-The exact versions should be pinned only when implementation begins.
+## 2. Accepted technology stack
 
 ### Web application
 
-- Next.js + TypeScript
+- Next.js App Router + TypeScript
+- React
 - Tailwind CSS
 - Server-side route handlers / backend-for-frontend where appropriate
-- Schema validation with a typed validation library
+- Zod for typed request/schema validation in the initial web boundary
+
+Initial pinned baseline in `package.json`:
+
+- Next.js 16.3.x
+- React 19.2.x
+- TypeScript 6.x
+- Tailwind CSS 4.3.x
+
+Versions are upgraded deliberately rather than floating silently.
 
 ### Core data platform
 
 - PostgreSQL
-- Supabase is the preferred managed platform candidate for PostgreSQL, authentication, storage, and optional realtime capabilities
+- **Dedicated Supabase project for Attendance System** for managed PostgreSQL, authentication, storage when needed, and optional realtime capabilities
+- Attendance System must not reuse the Spall Spill Supabase project, Auth tenant, Storage, tables, or credentials
+
+The live project is intentionally pending until the owner explicitly selects the Supabase organization required by the project-creation operation.
 
 ### Face verification service
 
@@ -55,7 +66,7 @@ The exact versions should be pinned only when implementation begins.
 
 ### Testing
 
-- Unit tests for domain rules
+- Vitest/unit tests for domain rules
 - Integration tests for API/database boundaries
 - End-to-end tests for web and simulator flows
 - Contract tests for device protocol
@@ -96,7 +107,7 @@ flowchart TB
     end
 
     subgraph DataLayer[Data Layer]
-      DB[(PostgreSQL)]
+      DB[(PostgreSQL / Supabase)]
       STORE[(Protected Object Storage)]
     end
 
@@ -144,19 +155,19 @@ Not responsible for:
 
 ### 4.2 Attendance Domain Engine
 
-This is the central business-rule boundary.
+This is the central business-rule boundary. The first pure implementation lives under `src/domain/attendance`.
 
 Responsibilities:
 
-- resolve student/card;
-- resolve session occurrence and eligibility;
+- resolve accepted/rejected canonical outcome from trusted resolved context;
 - enforce verification requirements;
 - apply timing/late rules;
-- detect duplicate/canonical attendance;
-- persist canonical outcome;
-- create pending school-day absence confirmation state;
-- return normalized device/domain outcome;
-- trigger reporting-relevant updates through canonical persistence.
+- enforce duplicate/canonical attendance rules;
+- preserve participant eligibility semantics;
+- return normalized device/domain outcome and physical feedback code;
+- later persist canonical outcome through a transaction/service boundary.
+
+Resolution of student/card/session data will move behind repository/service interfaces as persistence is introduced. The engine remains independent from simulator UI.
 
 ### 4.3 Schedule Resolver
 
@@ -234,6 +245,8 @@ sequenceDiagram
     A-->>Dev: canonical outcome + feedback code
 ```
 
+The current recruiter demo replaces external resolution with deterministic fixtures, then invokes the same pure decision engine. It does not write attendance directly from the client.
+
 ---
 
 ## 6. Data ownership and write paths
@@ -279,12 +292,12 @@ Initial school context is expected to use Indonesia time, but timezone must be c
 ```mermaid
 flowchart LR
     B[Browser] --> N[Next.js App]
-    N --> P[(Managed PostgreSQL / Supabase)]
+    N --> P[(Dedicated Supabase / PostgreSQL)]
     N --> F[Face Service]
     D[Simulator in Browser] --> N
 ```
 
-This is enough to build the complete portfolio experience without hardware.
+During the current foundation slice, database and real face adapters are not connected yet; the simulator can still exercise canonical decision logic.
 
 ---
 
@@ -326,37 +339,32 @@ flowchart LR
 
 ---
 
-## 12. Suggested project structure
+## 12. Accepted repository layout
 
-This is a target, not a requirement to create immediately:
+Start app-first rather than creating a monorepo before multiple deployable services exist:
 
 ```text
 attendance-system/
-├─ apps/
-│  └─ web/                   # Next.js admin, teacher, simulator UI
+├─ src/
+│  ├─ app/                    # Next.js routes, API routes, UI
+│  ├─ components/             # reusable UI
+│  ├─ contracts/              # versioned device/application DTOs
+│  ├─ demo/                   # deterministic simulator adapters/fixtures
+│  └─ domain/                 # framework-light business rules
+├─ database/                  # migration/schema workspace
 ├─ services/
-│  └─ face-service/          # Python/FastAPI biometric boundary
+│  └─ face-service/           # added when real biometric service begins
 ├─ device/
-│  ├─ protocol/              # shared protocol specs/examples
-│  ├─ serial-bridge/         # future Arduino USB bridge
-│  └─ firmware/              # future physical device code
-├─ packages/
-│  ├─ domain/                # attendance/schedule pure business logic
-│  ├─ contracts/             # typed DTO/events/status enums
-│  └─ reporting/             # shared reporting definitions
-├─ database/
-│  ├─ migrations/
-│  └─ seeds/
-├─ tests/
-│  ├─ contract/
-│  └─ e2e/
+│  ├─ serial-bridge/          # added when Arduino bridge begins
+│  └─ firmware/               # added when physical hardware work begins
+├─ tests/                     # integration/e2e/contract suites as needed
 ├─ docs/
 ├─ AGENTS.md
 ├─ SKILLS.md
 └─ WORK.md
 ```
 
-Whether the repository becomes a monorepo is a build-time decision, but the logical boundaries above should be preserved even if folders differ.
+Do not move the web app into `apps/web` merely to look like a monorepo. Introduce workspace tooling only when multiple real packages/services justify it.
 
 ---
 
@@ -391,14 +399,15 @@ Offline queuing for physical devices is a post-MVP capability unless explicitly 
 
 ---
 
-## 15. Architecture decision gates before coding
+## 15. Remaining architecture gates
 
-Before implementation begins, decide and record:
+The following are deliberately deferred until their implementation slice:
 
-1. repository layout (monorepo vs simpler initial layout);
-2. exact database/Auth provider;
-3. exact face verification engine for development;
-4. whether public recruiter demo and management app share deployment or route-level isolation;
-5. demo data-reset strategy;
-6. initial export libraries/format;
-7. whether object storage is needed in MVP or embeddings can be stored without retained snapshots.
+1. exact face verification engine/model and calibration process;
+2. public recruiter demo vs authenticated management deployment isolation;
+3. demo data-reset strategy after persistence exists;
+4. initial report export library/template;
+5. biometric reference/snapshot storage and retention policy;
+6. overlapping active-session routing policy.
+
+Database provider and repository layout are no longer open: use a dedicated Supabase project and the app-first layout defined above.
