@@ -1,7 +1,7 @@
 import type {
   AttendanceOutcome,
   ResolvedAttendanceAttempt,
-} from "@/domain/attendance/types";
+} from "../../domain/attendance/types";
 
 export interface PersistAttendanceResult {
   mode: "ephemeral" | "database";
