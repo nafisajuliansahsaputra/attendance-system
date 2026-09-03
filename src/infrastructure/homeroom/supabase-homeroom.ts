@@ -4,6 +4,8 @@ import type {
   HomeroomAttendanceRow,
   SchoolDayConfirmationResult,
 } from "../../application/homeroom/types";
+import { getAuthorizationContext } from "../auth/supabase-authorization";
+import { materializeSupabaseScheduleRange } from "../scheduling/supabase-schedule";
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
 const snapshotRowSchema = z.object({
@@ -59,6 +61,18 @@ export async function getHomeroomAttendanceSnapshot(
   classId: string,
   schoolDate: string,
 ): Promise<HomeroomAttendanceRow[]> {
+  const authorization = await getAuthorizationContext(actorUserId, schoolDate);
+
+  if (!authorization) {
+    throw new Error("AUTH_PROFILE_NOT_FOUND");
+  }
+
+  await materializeSupabaseScheduleRange({
+    institutionId: authorization.institutionId,
+    startDate: schoolDate,
+    endDate: schoolDate,
+  });
+
   const raw = await callSupabaseAdminRpc<unknown>(
     "get_homeroom_attendance_snapshot",
     {
