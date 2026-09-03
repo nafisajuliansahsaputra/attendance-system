@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LiveRecruiterTerminal } from "@/components/terminal/LiveRecruiterTerminal";
 
 export const metadata: Metadata = {
-  title: "Live Attendance Terminal",
+  title: "Terminal Absensi Siswa",
 };
 
 export default function TerminalPage() {
