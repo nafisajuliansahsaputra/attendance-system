@@ -1,4 +1,4 @@
-export type FaceVerificationStatus = "match" | "mismatch" | "error";
+export type FaceVerificationStatus = "match" | "mismatch" | "error" | "not_required";
 
 export type AttendanceOutcomeCode =
   | "ACCEPTED_ON_TIME"
