@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { getAdminStudentDirectory } from "../../../infrastructure/admin/supabase-students";
 import { requireAuthorizedUser } from "../../../lib/auth/require-authorized-user";
-import { assignStudentRfidAction } from "./actions";
+import {
+  assignStudentRfidAction,
+  transferStudentEnrollmentAction,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -22,13 +25,26 @@ function feedbackMessage(saved?: string, error?: string) {
     };
   }
 
+  if (saved === "class") {
+    return {
+      tone: "success" as const,
+      text: "Enrollment kelas berhasil disimpan. Perpindahan kelas mempertahankan rentang enrollment lama untuk laporan historis.",
+    };
+  }
+
   const errors: Record<string, string> = {
     "rfid-in-use": "UID RFID tersebut masih aktif untuk siswa lain.",
     "student-not-found": "Data siswa tidak ditemukan di institusi ini.",
     forbidden: "Akun ini tidak memiliki izin administrator.",
     "invalid-rfid": "UID RFID tidak valid.",
-    "invalid-input": "Data form tidak valid. Periksa UID RFID dan coba lagi.",
+    "invalid-input": "Data form RFID tidak valid. Periksa UID dan coba lagi.",
     "save-failed": "RFID belum dapat disimpan karena terjadi kesalahan server.",
+    "invalid-transfer": "Data perpindahan kelas tidak valid.",
+    "transfer-date": "Tanggal efektif harus setelah tanggal mulai enrollment kelas yang sedang aktif.",
+    "academic-year-date": "Tanggal efektif tidak berada di dalam tahun ajaran yang terdaftar.",
+    "class-not-found": "Kelas tujuan tidak tersedia atau sudah tidak aktif.",
+    "enrollment-overlap": "Rentang enrollment akan tumpang tindih dengan riwayat kelas lain.",
+    "transfer-failed": "Perpindahan kelas belum dapat disimpan karena terjadi kesalahan server.",
   };
 
   if (error && errors[error]) {
@@ -69,7 +85,7 @@ export default async function StudentAdminPage({
             Siswa & identitas terminal
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-            Kelola kartu RFID aktif dan pantau kesiapan face profile. Mengganti kartu tidak menghapus kartu lama; riwayat credential tetap disimpan untuk audit.
+            Kelola kelas aktif dan kartu RFID tanpa menghapus histori. Perpindahan kelas membuat enrollment baru dengan tanggal efektif, sementara kartu lama disimpan sebagai credential REPLACED.
           </p>
         </div>
       </header>
@@ -143,11 +159,12 @@ export default async function StudentAdminPage({
 
         {rows.length > 0 ? (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1180px] border-collapse text-left text-sm">
+            <table className="w-full min-w-[1560px] border-collapse text-left text-sm">
               <thead className="bg-[var(--surface-soft)] text-xs uppercase tracking-wider text-[var(--muted)]">
                 <tr>
                   <th className="px-5 py-4 font-medium">Siswa</th>
-                  <th className="px-5 py-4 font-medium">Kelas</th>
+                  <th className="px-5 py-4 font-medium">Kelas aktif</th>
+                  <th className="px-5 py-4 font-medium">Pindah / enroll kelas</th>
                   <th className="px-5 py-4 font-medium">RFID aktif</th>
                   <th className="px-5 py-4 font-medium">Face profile</th>
                   <th className="px-5 py-4 font-medium">Assign / replace RFID</th>
@@ -168,6 +185,47 @@ export default async function StudentAdminPage({
                       {student.classCode ? (
                         <p className="mt-1 text-xs text-[var(--muted)]">{student.classCode}</p>
                       ) : null}
+                    </td>
+                    <td className="px-5 py-5">
+                      <form action={transferStudentEnrollmentAction} className="grid min-w-[330px] gap-2">
+                        <input type="hidden" name="studentId" value={student.studentId} />
+                        <input type="hidden" name="search" value={search} />
+                        <input type="hidden" name="classId" value={selectedClass?.id ?? ""} />
+                        <select
+                          name="targetClassId"
+                          required
+                          defaultValue={student.classId ?? ""}
+                          className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm outline-none"
+                        >
+                          <option value="" disabled>
+                            Pilih kelas tujuan
+                          </option>
+                          {context.classes.map((item) => (
+                            <option key={item.id} value={item.id}>
+                              {item.name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name="effectiveOn"
+                          type="date"
+                          required
+                          defaultValue={context.schoolDate}
+                          className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm outline-none"
+                        />
+                        <input
+                          name="note"
+                          maxLength={300}
+                          placeholder="Alasan / catatan mutasi (opsional)"
+                          className="rounded-xl border border-[var(--border)] bg-[var(--background)] px-3 py-2.5 text-sm outline-none"
+                        />
+                        <button
+                          type="submit"
+                          className="rounded-xl border border-[var(--border)] px-3 py-2.5 text-sm font-semibold transition hover:bg-[var(--surface-soft)]"
+                        >
+                          {student.classId ? "Simpan perpindahan" : "Enroll ke kelas"}
+                        </button>
+                      </form>
                     </td>
                     <td className="px-5 py-5">
                       {student.rfidUid ? (
