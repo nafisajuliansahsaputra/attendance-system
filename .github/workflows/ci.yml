@@ -40,7 +40,7 @@ jobs:
 
   face-service:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: services/face-service
@@ -65,3 +65,11 @@ jobs:
         env:
           PYTHONPATH: .
         run: python -m pytest -q
+
+      - name: Download and verify pinned face models
+        run: python scripts/download_models.py
+
+      - name: Load YuNet and SFace models in OpenCV
+        env:
+          PYTHONPATH: .
+        run: python scripts/smoke_models.py
