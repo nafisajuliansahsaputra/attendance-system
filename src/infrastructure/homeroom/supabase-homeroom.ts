@@ -36,20 +36,7 @@ const confirmationResultSchema = z.object({
   finalStatus: z.enum(["SAKIT", "IZIN", "ALPA"]),
 });
 
-export async function getHomeroomAttendanceSnapshot(
-  actorUserId: string,
-  classId: string,
-  schoolDate: string,
-): Promise<HomeroomAttendanceRow[]> {
-  const raw = await callSupabaseAdminRpc<unknown>(
-    "get_homeroom_attendance_snapshot",
-    {
-      p_actor_user_id: actorUserId,
-      p_class_id: classId,
-      p_school_date: schoolDate,
-    },
-  );
-
+export function parseHomeroomAttendanceSnapshot(raw: unknown): HomeroomAttendanceRow[] {
   const rows = z.array(snapshotRowSchema).parse(raw);
 
   return rows.map((row) => ({
@@ -65,6 +52,23 @@ export async function getHomeroomAttendanceSnapshot(
     finalStatus: row.final_status ?? undefined,
     needsConfirmation: row.needs_confirmation,
   }));
+}
+
+export async function getHomeroomAttendanceSnapshot(
+  actorUserId: string,
+  classId: string,
+  schoolDate: string,
+): Promise<HomeroomAttendanceRow[]> {
+  const raw = await callSupabaseAdminRpc<unknown>(
+    "get_homeroom_attendance_snapshot",
+    {
+      p_actor_user_id: actorUserId,
+      p_class_id: classId,
+      p_school_date: schoolDate,
+    },
+  );
+
+  return parseHomeroomAttendanceSnapshot(raw);
 }
 
 export async function confirmSchoolDayStatus(input: {
