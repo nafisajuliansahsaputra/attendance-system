@@ -17,7 +17,7 @@ export async function requireAuthorizedUser(
   const claims = error ? null : data?.claims;
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
-  if (!userId) {
+  if (!userId || !claims) {
     redirect("/login");
   }
 
