@@ -23,6 +23,8 @@ function toDatabaseVerificationResult(status: FaceVerificationStatus): string {
       return "MISMATCH";
     case "error":
       return "SERVICE_ERROR";
+    case "not_required":
+      return "NOT_REQUIRED";
   }
 }
 
