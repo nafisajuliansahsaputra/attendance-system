@@ -1,8 +1,8 @@
-import { evaluateAttendanceAttempt } from "@/domain/attendance/engine";
+import { evaluateAttendanceAttempt } from "../../domain/attendance/engine";
 import type {
   AttendanceOutcome,
   ResolvedAttendanceAttempt,
-} from "@/domain/attendance/types";
+} from "../../domain/attendance/types";
 import type {
   AttendanceAttemptPersistence,
   PersistAttendanceResult,
