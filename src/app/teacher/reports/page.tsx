@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SCHOOL } from "@/config/school";
 import { buildReportDatePresets } from "../../../application/reports/presets";
 import { getClassAttendanceReport } from "../../../infrastructure/reports/supabase-class-report";
 import { getReportingPeriodPresets } from "../../../infrastructure/reports/supabase-report-periods";
@@ -32,7 +33,7 @@ function sessionLabel(type: string) {
     ASHAR: "Sholat Ashar",
     CEREMONY: "Upacara",
     SCHOOL_ACTIVITY: "Kegiatan sekolah",
-    CUSTOM: "Kegiatan lain",
+    CUSTOM: "Kegiatan lainnya",
   };
 
   return labels[type] ?? type.replaceAll("_", " ");
@@ -86,15 +87,14 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             href="/teacher"
             className="text-sm text-[var(--muted)] transition hover:text-[var(--text)]"
           >
-            ← Kembali ke absensi harian
+            ← Kembali ke pemeriksaan kehadiran
           </Link>
           <p className="mt-6 text-xs font-semibold uppercase tracking-[0.3em] text-[var(--success)]">
-            Derived reports
+            {SCHOOL.name} · Wali Kelas
           </p>
-          <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Rekap absensi kelas</h1>
+          <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Rekap Kehadiran Kelas</h1>
           <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-            Rekap dihitung ulang dari attendance canonical dan konfirmasi wali kelas,
-            bukan dari counter manual yang disimpan terpisah.
+            Rekap dihitung dari data absensi siswa dan konfirmasi Sakit, Izin, atau Alpa yang sudah diberikan wali kelas pada periode yang dipilih.
           </p>
         </div>
       </header>
@@ -108,7 +108,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
             <select
               name="class"
               defaultValue={selectedClass?.id}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
             >
               {context.classes.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -120,33 +120,33 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
           <label>
             <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-              Dari
+              Tanggal mulai
             </span>
             <input
               name="from"
               type="date"
               defaultValue={startDate}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
 
           <label>
             <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-              Sampai
+              Tanggal akhir
             </span>
             <input
               name="to"
               type="date"
               defaultValue={endDate}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
 
           <button
             type="submit"
-            className="rounded-xl bg-[var(--success)] px-5 py-3 text-sm font-semibold text-[#07100d]"
+            className="rounded-xl bg-[var(--success)] px-5 py-3 text-sm font-semibold text-white"
           >
-            Buat rekap
+            Tampilkan rekap
           </button>
         </form>
 
@@ -169,9 +169,9 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         <>
           <section className="mt-6 flex flex-col gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
             <div>
-              <h2 className="text-lg font-semibold">Export rekap</h2>
+              <h2 className="text-lg font-semibold">Unduh atau cetak rekap</h2>
               <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                CSV menggunakan format UTF-8 yang ramah Excel. Tampilan print dapat langsung disimpan sebagai PDF dari dialog print browser.
+                File CSV dapat dibuka menggunakan Excel. Tampilan cetak dapat langsung dicetak atau disimpan sebagai PDF melalui menu cetak browser.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -180,29 +180,29 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 prefetch={false}
                 className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold transition hover:bg-[var(--surface-soft)]"
               >
-                Download CSV
+                Unduh CSV
               </Link>
               <Link
                 href={`/teacher/reports/print?${exportQuery}`}
                 target="_blank"
                 rel="noreferrer"
-                className="rounded-xl bg-[var(--success)] px-4 py-3 text-sm font-semibold text-[#07100d]"
+                className="rounded-xl bg-[var(--success)] px-4 py-3 text-sm font-semibold text-white"
               >
-                Print / Save PDF
+                Cetak / Simpan PDF
               </Link>
             </div>
           </section>
 
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
-              ["Siswa", report.totals.students],
+              ["Jumlah siswa", report.totals.students],
               ["Hadir", report.totals.present],
               ["Terlambat", report.totals.late],
-              ["Pending", report.totals.pending],
+              ["Belum dikonfirmasi", report.totals.pending],
               ["Sakit", report.totals.sakit],
               ["Izin", report.totals.izin],
               ["Alpa", report.totals.alpa],
-              ["Hari wajib (student-days)", report.totals.requiredStudentDays],
+              ["Total hari wajib siswa", report.totals.requiredStudentDays],
             ].map(([label, value]) => (
               <article
                 key={label}
@@ -226,13 +226,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
                 <thead className="bg-[var(--surface-soft)] text-xs uppercase tracking-wider text-[var(--muted)]">
                   <tr>
                     <th className="px-5 py-4 font-medium">Siswa</th>
-                    <th className="px-5 py-4 font-medium">Wajib</th>
+                    <th className="px-5 py-4 font-medium">Hari wajib</th>
                     <th className="px-5 py-4 font-medium">Hadir</th>
                     <th className="px-5 py-4 font-medium">Terlambat</th>
                     <th className="px-5 py-4 font-medium">Sakit</th>
                     <th className="px-5 py-4 font-medium">Izin</th>
                     <th className="px-5 py-4 font-medium">Alpa</th>
-                    <th className="px-5 py-4 font-medium">Pending</th>
+                    <th className="px-5 py-4 font-medium">Belum dikonfirmasi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -257,22 +257,20 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           </section>
 
           <section className="mt-6 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">Partisipasi sesi</h2>
+            <h2 className="text-lg font-semibold">Kehadiran kegiatan & sesi sekolah</h2>
             <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-              Angka di bawah adalah fakta mentah sesi yang terjadwal vs tercatat hadir.
-              Sistem belum menghitung persentase ibadah/kegiatan sampai kebijakan Sakit/Izin
-              terhadap denominator diputuskan.
+              Bagian ini menampilkan jumlah keikutsertaan siswa pada setiap jenis sesi yang dijadwalkan dan jumlah yang tercatat hadir. Persentase khusus ibadah atau kegiatan belum dihitung sampai aturan sekolah untuk Sakit/Izin pada perhitungan tersebut ditetapkan.
             </p>
 
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {report.sessionTypes.map((session) => (
                 <article
                   key={session.sessionType}
-                  className="rounded-2xl border border-[var(--border)] bg-[var(--background)] p-4"
+                  className="rounded-2xl border border-[var(--border)] bg-white p-4"
                 >
                   <p className="font-medium">{sessionLabel(session.sessionType)}</p>
                   <p className="mt-2 text-sm text-[var(--muted)]">
-                    Hadir {session.attendedParticipations} dari {session.scheduledParticipations} partisipasi terjadwal
+                    Hadir {session.attendedParticipations} dari {session.scheduledParticipations} keikutsertaan yang dijadwalkan
                   </p>
                 </article>
               ))}
