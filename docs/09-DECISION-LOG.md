@@ -259,8 +259,7 @@ Create and use a separate Supabase project exclusively for Attendance System.
 
 - no shared database tables with Spall Spill;
 - no shared Auth tenant or Storage buckets;
-- separate environment variables and credentials;
-- project creation waits for explicit Supabase organization selection.
+- separate environment variables and credentials.
 
 ---
 
@@ -320,6 +319,55 @@ The context resolver may return multiple candidate sessions, but the application
 - no attendance is silently assigned to an arbitrary overlapping session;
 - future priority/relationship rules can be added without changing the database resolver contract;
 - overlap becomes a visible configuration problem instead of hidden data corruption.
+
+---
+
+## ADR-017 — Supabase Auth proves identity; application database owns authorization
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Context
+
+Staff authentication and authorization are different concerns. Supabase Auth can securely establish the signed-in user identity, but user-editable metadata must never become the source of school roles or class access.
+
+### Decision
+
+- use Supabase Auth sessions to verify staff identity;
+- verify protected requests with server-side Auth claims and use only the authenticated user ID as the identity bridge;
+- resolve `SYSTEM_ADMIN`, `HOMEROOM_TEACHER`, and `OPERATOR` role plus class scope from canonical `profiles` and `homeroom_assignments` data;
+- keep privileged attendance/authorization RPCs server-only and executable by `service_role`, not `anon` or `authenticated`;
+- keep direct browser table access closed for the current server-authoritative architecture;
+- public self-registration is not part of the current MVP; staff accounts are provisioned internally.
+
+### Consequences
+
+- changing browser/JWT user metadata cannot grant a teacher another class;
+- a valid Auth account without an active application profile is denied access;
+- homeroom access can change by academic year/date without changing Auth identities;
+- browser code never receives the Supabase secret/service-role credential;
+- future self-service onboarding would require a new explicit authorization decision rather than quietly weakening this boundary.
+
+---
+
+## ADR-018 — Homeroom absence confirmation cannot override valid arrival truth
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Context
+
+The user requires Sakit, Izin, and Alpa to be decided by the homeroom teacher, but a teacher confirmation must not contradict a valid RFID + face-verified school arrival already stored by the system.
+
+### Decision
+
+A teacher/admin may confirm `SAKIT`, `IZIN`, or `ALPA` only when the student had a required school-arrival session and no valid school-arrival attendance exists for that date. Every confirmation writes confirmation history and an audit log.
+
+### Consequences
+
+- the teacher supplies the reason for absence, not the presence fact;
+- valid machine attendance cannot be rewritten into an absence reason through the normal homeroom workflow;
+- confirmation changes remain attributable and auditable.
 
 ---
 
