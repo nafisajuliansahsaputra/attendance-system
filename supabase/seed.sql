@@ -1,11 +1,11 @@
 -- Attendance System fictional portfolio seed
--- All institutions, people, identifiers, schedules, RFID UIDs, and biometric references
--- below are synthetic demo data. They must never be presented as real school data.
+-- All people, identifiers, schedules, RFID UIDs, and biometric references
+-- below are synthetic demo data. They must never be presented as real student data.
 
 begin;
 
 insert into public.institutions (id, name, timezone)
-values ('11111111-1111-4111-8111-111111111111', 'SMK Cakrawala Digital (Fiktif)', 'Asia/Jakarta')
+values ('11111111-1111-4111-8111-111111111111', 'SMK Amaliah 1 & 2 Ciawi', 'Asia/Jakarta')
 on conflict (id) do update set
   name = excluded.name,
   timezone = excluded.timezone;
@@ -129,7 +129,7 @@ on conflict (id) do update set
   late_enabled = excluded.late_enabled,
   is_active = excluded.is_active;
 
--- These schedule values are portfolio fixtures only, not claims about a real school.
+-- These schedule values are synthetic fixtures for testing, not claims about the real school schedule.
 insert into public.attendance_schedule_rules (
   id, institution_id, session_template_id, name, recurrence_rule,
   starts_on, opens_at, late_after_at, closes_at,
@@ -190,11 +190,11 @@ values (
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0001',
   '11111111-1111-4111-8111-111111111111',
   'SIM-PORTFOLIO-01',
-  'Portfolio Attendance Terminal',
+  'Terminal Absensi Simulasi',
   'SIMULATOR',
   'ACTIVE',
   'v1',
-  '{"fixture":true,"description":"Synthetic recruiter demo device"}'::jsonb
+  '{"fixture":true,"description":"Perangkat simulasi untuk pengujian sistem absensi"}'::jsonb
 )
 on conflict (id) do update set
   name = excluded.name,
