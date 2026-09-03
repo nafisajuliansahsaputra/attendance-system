@@ -27,6 +27,12 @@ const NEUTRAL: FeedbackPattern = {
 export function feedbackFor(code: AttendanceOutcomeCode): FeedbackPattern {
   if (code === "ACCEPTED_ON_TIME" || code === "ACCEPTED_LATE") return SUCCESS;
   if (code === "FACE_MISMATCH") return FACE_MISMATCH;
-  if (code === "FACE_SERVICE_ERROR") return ERROR;
+  if (
+    code === "FACE_NOT_DETECTED" ||
+    code === "FACE_LOW_QUALITY" ||
+    code === "FACE_SERVICE_ERROR"
+  ) {
+    return ERROR;
+  }
   return NEUTRAL;
 }
