@@ -1,413 +1,366 @@
-# Target Architecture
+# V1 Architecture
 
-**Status:** Accepted baseline architecture — implementation started 2026-09-03  
-**Source of truth:** `docs/00-SOURCE-OF-TRUTH.md`
-
-This architecture is intentionally designed so the system can be fully developed and demonstrated without hardware, while remaining directly integrable with Arduino/ESP32-class devices later.
+**Status:** Implemented baseline — ready for user E2E testing  
+**Source of truth:** `docs/00-SOURCE-OF-TRUTH.md`  
+**Last updated:** 2026-09-03
 
 ---
 
 ## 1. Architecture principles
 
-1. **Domain logic is server-side.** Attendance validity, eligibility, lateness, duplicate rules, and final outcomes are not owned by the UI.
-2. **Simulator and hardware are peers.** Both are device clients/adapters of the same contract.
-3. **Face verification is replaceable.** Attendance logic calls a face-verification interface rather than depending directly on one library.
-4. **Raw events are append-oriented; canonical attendance is derived/idempotent.**
-5. **Schedules are data, not hard-coded conditions.**
-6. **Role and school-scope authorization is enforced on the server.**
-7. **Biometric data is isolated and minimized.**
+1. Attendance truth is server/domain-owned, never browser-owned.
+2. RFID identifies the expected student; face is 1:1 verification against that owner.
+3. Simulator and physical hardware are adapters to canonical rules, not separate products.
+4. Raw events, verification evidence, and canonical attendance are separate.
+5. Schedules and participant targeting are configuration/data, not weekday hard-code.
+6. Staff Auth identity and application authorization are separate concerns.
+7. Biometric infrastructure is replaceable and minimized.
+8. Device/client retries must be idempotent.
+9. Unresolved ambiguous sessions fail closed.
+10. Raw biometric images are not canonical stored data in V1.
 
 ---
 
-## 2. Accepted technology stack
+## 2. Implemented technology stack
 
-### Web application
+### Web / application
 
 - Next.js App Router + TypeScript
 - React
 - Tailwind CSS
-- Server-side route handlers / backend-for-frontend where appropriate
-- Zod for typed request/schema validation in the initial web boundary
+- Zod validation
+- server actions / route handlers / server-only infrastructure adapters
 
-Initial pinned baseline in `package.json`:
+### Data / Auth
 
-- Next.js 16.3.x
-- React 19.2.x
-- TypeScript 6.x
-- Tailwind CSS 4.3.x
+- PostgreSQL in a dedicated Attendance System Supabase project
+- Supabase Auth for staff identity
+- server-only privileged RPC paths
+- RLS-enabled public domain tables with default-deny browser access
 
-Versions are upgraded deliberately rather than floating silently.
+### Face service
 
-### Core data platform
-
-- PostgreSQL
-- **Dedicated Supabase project for Attendance System** for managed PostgreSQL, authentication, storage when needed, and optional realtime capabilities
-- Attendance System must not reuse the Spall Spill Supabase project, Auth tenant, Storage, tables, or credentials
-
-The live project is intentionally pending until the owner explicitly selects the Supabase organization required by the project-creation operation.
-
-### Face verification service
-
-- Separate Python service boundary, preferably FastAPI
-- OpenCV for capture/preprocessing utilities where useful
-- A production-capable face embedding/verification implementation selected and calibrated later
-- 1:1 verification API only for the core attendance flow
-
-### Device bridge
-
-- Python local bridge for USB/serial Arduino-style devices when needed
-- Direct HTTPS device integration for Wi-Fi-capable ESP32-class devices when supported
-
-### Reporting
-
-- Server-side report queries/services
-- XLSX/CSV export library
-- PDF/print output generated from server-rendered or dedicated report templates
+- Python 3.12
+- FastAPI
+- OpenCV YuNet face detection
+- OpenCV SFace feature extraction / 1:1 comparison
+- private service key between Next.js and the face service
 
 ### Testing
 
-- Vitest/unit tests for domain rules
-- Integration tests for API/database boundaries
-- End-to-end tests for web and simulator flows
-- Contract tests for device protocol
+- Vitest for web/domain/application contracts
+- pytest for face-service contracts
+- GitHub Actions for install/lint/typecheck/tests/build/model smoke
+- transaction/rollback live Supabase smoke tests for critical persistence paths
 
 ---
 
-## 3. Logical system diagram
+## 3. Logical V1 topology
 
 ```mermaid
-flowchart TB
-    subgraph DeviceLayer[Device Layer]
-      RFID[RFID Reader]
-      CAM[Camera Module]
-      IO[LED + Buzzer]
-      HW[Arduino / ESP32 Adapter]
-      SIM[Web Simulator]
-      RFID --> HW
-      CAM --> HW
-      HW --> IO
-    end
-
-    subgraph EdgeLayer[Device Access]
-      BRIDGE[Local Serial Bridge]
-      DAPI[Versioned Device API]
-    end
-
-    subgraph AppLayer[Application Layer]
-      WEB[Next.js Management & Demo Web]
-      ATT[Attendance Domain Engine]
-      SCH[Schedule Resolver]
-      AUTH[RBAC / Auth]
-      REPORT[Reporting Service]
-      AUDIT[Audit/Event Service]
-    end
-
-    subgraph FaceLayer[Biometric Service]
-      FACE[1:1 Face Verification Service]
-    end
-
-    subgraph DataLayer[Data Layer]
-      DB[(PostgreSQL / Supabase)]
-      STORE[(Protected Object Storage)]
-    end
-
-    HW -->|USB serial| BRIDGE
-    BRIDGE --> DAPI
-    HW -->|HTTPS when network-capable| DAPI
-    SIM --> DAPI
-    DAPI --> ATT
-    ATT --> SCH
-    ATT --> FACE
-    ATT --> DB
-    ATT --> AUDIT
-    FACE --> DB
-    FACE --> STORE
-    WEB --> AUTH
-    WEB --> ATT
-    WEB --> REPORT
-    REPORT --> DB
-    AUDIT --> DB
+flowchart LR
+    HW[RFID + Camera Terminal\nor Future Arduino Bridge] --> API[Device API v1]
+    SIM[Recruiter Simulator] --> CORE[Canonical Attendance Engine]
+    API --> RES[RFID / Enrollment / Session / Eligibility Resolver]
+    RES --> TX[Verification Transaction]
+    TX --> FACE[Private FastAPI\nYuNet + SFace]
+    FACE --> CORE
+    RES --> CORE
+    CORE --> DB[(Supabase PostgreSQL)]
+    DB --> WEB[Admin + Homeroom Web]
+    DB --> REP[Derived Reporting]
+    REP --> WEB
 ```
+
+The public recruiter simulator uses deterministic fixture resolution and canonical decision logic, but remains ephemeral. Real device/database mode uses the full resolver + transaction + persistence path.
 
 ---
 
-## 4. Application boundaries
-
-### 4.1 Web UI
+## 4. Web application boundary
 
 Responsibilities:
 
-- authentication entry;
-- dashboard and class views;
-- student/RFID/face enrollment workflows;
-- schedule/calendar configuration;
-- special events;
-- reports and exports;
-- device monitoring;
-- simulator controls.
+- staff login/session handling;
+- role/class authorization guard;
+- admin students/RFID/class-history management;
+- browser face enrollment workflow;
+- schedule configuration;
+- device registry/monitoring;
+- staff provisioning;
+- homeroom reconciliation;
+- reports/exports;
+- recruiter simulator UI;
+- versioned device HTTP endpoints.
 
 Not responsible for:
 
-- deciding attendance truth client-side;
-- directly writing trusted attendance statuses to the database;
-- embedding device secrets in browser code;
-- performing authoritative RBAC only through hidden UI controls.
-
-### 4.2 Attendance Domain Engine
-
-This is the central business-rule boundary. The first pure implementation lives under `src/domain/attendance`.
-
-Responsibilities:
-
-- resolve accepted/rejected canonical outcome from trusted resolved context;
-- enforce verification requirements;
-- apply timing/late rules;
-- enforce duplicate/canonical attendance rules;
-- preserve participant eligibility semantics;
-- return normalized device/domain outcome and physical feedback code;
-- later persist canonical outcome through a transaction/service boundary.
-
-Resolution of student/card/session data will move behind repository/service interfaces as persistence is introduced. The engine remains independent from simulator UI.
-
-### 4.3 Schedule Resolver
-
-Responsibilities:
-
-- ordinary school calendar;
-- recurrence rules;
-- holidays/cancellations;
-- special events;
-- additive vs replacing schedules;
-- participant resolution;
-- current active session lookup;
-- future occurrence preview.
-
-The resolver must make schedule behavior deterministic and testable.
-
-### 4.4 Face Verification Service
-
-Interface concept:
-
-- enroll reference/template;
-- validate sample quality;
-- verify sample against one expected person;
-- return result + model/version + score/confidence metadata suitable for audit;
-- delete/revoke reference.
-
-It must not be responsible for attendance eligibility or teacher absence classification.
-
-### 4.5 Reporting Service
-
-Responsibilities:
-
-- compute summaries from canonical records;
-- apply period/class/student filters;
-- produce consistent totals;
-- support exports;
-- avoid independent manual tally tables that can drift from source data.
-
-### 4.6 Audit/Event Service
-
-Responsibilities:
-
-- append raw device events;
-- verification attempts;
-- administrative changes;
-- attendance corrections;
-- role/device/schedule changes;
-- timestamps/actors/request identifiers.
-
-Raw audit/security events must not be editable like ordinary student profile fields.
+- trusting client-submitted student/class/session identity;
+- making attendance truth client-side;
+- exposing Supabase secret/device secret/biometric embeddings to browser users;
+- treating hidden buttons as authorization.
 
 ---
 
-## 5. Request flow — RFID + face verification
+## 5. Canonical attendance domain engine
 
-```mermaid
-sequenceDiagram
-    participant Dev as Device / Simulator
-    participant API as Device API
-    participant A as Attendance Engine
-    participant S as Schedule Resolver
-    participant DB as PostgreSQL
-    participant F as Face Service
+Framework-light domain code receives resolved/trusted context and decides:
 
-    Dev->>API: card.scan(uid, request_id, timestamp)
-    API->>A: normalized card event
-    A->>DB: resolve device + card + student
-    A->>S: resolve active eligible session
-    S-->>A: session occurrence / no applicable session
-    A-->>Dev: next action (capture face / reject / not eligible)
-    Dev->>API: face.sample(request_id, capture)
-    API->>F: verify(expected_student, sample)
-    F-->>A: match/mismatch/error + model metadata
-    A->>DB: append event + upsert canonical attendance transactionally
-    A-->>Dev: canonical outcome + feedback code
+- accepted on time;
+- accepted late;
+- face mismatch;
+- no face / low quality / face-service error;
+- unknown card;
+- no session / outside window;
+- not eligible;
+- duplicate;
+- face not required.
+
+It returns normalized outcome + physical feedback semantics. It does not query the browser UI for policy.
+
+Persistence is a separate interface; the Supabase implementation records the domain outcome atomically/idempotently.
+
+---
+
+## 6. Schedule and participant architecture
+
+Configuration:
+
+```text
+attendance_session_templates
+attendance_schedule_rules
 ```
 
-The current recruiter demo replaces external resolution with deterministic fixtures, then invokes the same pure decision engine. It does not write attendance directly from the client.
+Materialized runtime:
 
----
-
-## 6. Data ownership and write paths
-
-Preferred rule:
-
-- browsers do not receive privileged direct write access to attendance truth;
-- device clients do not write database tables directly;
-- face service cannot independently create attendance;
-- all canonical attendance writes go through the domain service/backend transaction boundary;
-- teacher confirmations go through authorized application commands with audit entries.
-
----
-
-## 7. Transaction and idempotency model
-
-Each device submission should carry an idempotency/request identifier.
-
-For attendance creation, use a uniqueness boundary conceptually equivalent to:
-
-- `student_id + session_occurrence_id + attendance_role/mode`
-
-Exact schema may differ by session mode, but replaying the same valid event must not create duplicate canonical attendance.
-
-Raw events can still preserve repeated scans with their own unique event IDs.
-
----
-
-## 8. Time and timezone model
-
-- Store canonical timestamps in UTC.
-- Store institution timezone explicitly.
-- Resolve session windows using institution-local time.
-- Never compare server-local machine time implicitly.
-- Report labels/dates should use the institution timezone.
-
-Initial school context is expected to use Indonesia time, but timezone must be configuration rather than hard-coded business logic.
-
----
-
-## 9. Deployment topology — development/demo
-
-```mermaid
-flowchart LR
-    B[Browser] --> N[Next.js App]
-    N --> P[(Dedicated Supabase / PostgreSQL)]
-    N --> F[Face Service]
-    D[Simulator in Browser] --> N
+```text
+attendance_session_occurrences
+session_participants
 ```
 
-During the current foundation slice, database and real face adapters are not connected yet; the simulator can still exercise canonical decision logic.
+Participant snapshots resolve from historical `student_enrollments` on the concrete occurrence date.
+
+Materialization happens from:
+
+- Device API current event date;
+- Homeroom daily reads;
+- report range reads.
+
+Thus a day with zero scans still has explicit required participants and can become Pending.
+
+Schedule engine supports one-off / DAILY / WEEKLY + BYDAY/INTERVAL subset and special NORMAL/ADDITIVE/REPLACE_NORMAL/CANCEL_NORMAL relationships.
 
 ---
 
-## 10. Deployment topology — future physical Arduino
+## 7. Device API architecture
 
-```mermaid
-flowchart LR
-    R[RC522] --> A[Arduino]
-    C[Camera-capable companion/device] --> A
-    A -->|USB Serial| L[Local Device Bridge]
-    L -->|HTTPS| API[Device API]
-    API --> CORE[Attendance Engine]
-    CORE --> FACE[Face Service]
-    CORE --> DB[(PostgreSQL)]
-    CORE --> L
-    L --> A
-    A --> LED[LED]
-    A --> BUZ[Buzzer]
+### Authentication
+
+Device request carries:
+
+```text
+Authorization: Bearer <plaintext-device-secret>
+X-Device-Id: <uuid>
+X-Protocol-Version: v1
 ```
 
-If the exact original hardware uses separate boards for camera and RFID, adapters can normalize their events before the Device API without changing the domain layer.
+Only SHA-256 device-secret hash is stored in PostgreSQL.
 
----
+### Stage 1
 
-## 11. Deployment topology — future ESP32-class terminal
+`POST /api/device/v1/card-scan`
 
-```mermaid
-flowchart LR
-    R[RFID] --> E[ESP32 / ESP32-CAM]
-    C[Camera] --> E
-    E -->|HTTPS/Wi-Fi| API[Device API]
-    API --> CORE[Attendance Engine]
-    CORE --> FACE[Face Service]
-    CORE --> DB[(PostgreSQL)]
-    API --> E
-    E --> LED[LED]
-    E --> BUZ[Buzzer]
+```text
+authenticate device
+→ timestamp guard
+→ materialize schedule
+→ RFID owner
+→ historical enrollment
+→ candidate session + eligibility + duplicate
+→ CAPTURE_FACE / ACCEPT_WITHOUT_FACE / normalized reject
 ```
 
+### Stage 2
+
+`POST /api/device/v1/face-verify`
+
+A short-lived DB transaction binds:
+
+```text
+device + request + RFID UID + expected student + occurrence + active face profile
+```
+
+Stage 2 cannot change those bindings.
+
+MATCH/MISMATCH finalization is atomic and consumes the transaction. Consumed-transaction replay returns the stored outcome instead of creating another attendance.
+
 ---
 
-## 12. Accepted repository layout
+## 8. Face verification architecture
 
-Start app-first rather than creating a monorepo before multiple deployable services exist:
+### Enrollment
+
+```text
+Admin browser camera
+→ protected Next.js API
+→ private FastAPI /v1/extract
+→ quality gates + YuNet + SFace
+→ embedding/fingerprint/model metadata
+→ versioned ACTIVE face_profile in Supabase
+```
+
+Raw enrollment JPEG is not persisted in canonical DB.
+
+### Verification
+
+```text
+Device JPEG
+→ protected Next Device API
+→ load expected embedding server-side
+→ private FastAPI /v1/verify
+→ quality gates + YuNet + SFace cosine comparison
+→ canonical domain outcome
+→ atomic verification/attendance persistence
+```
+
+No face / low quality is retryable while transaction remains active. Mismatch is a canonical rejected identity result.
+
+V1 liveness is absent and explicitly reported false.
+
+---
+
+## 9. Persistence boundaries
+
+Key separation:
+
+```text
+device_events              # raw / operational audit
+verification_attempts      # biometric verification result/metadata
+attendance_records         # canonical accepted session attendance
+school_day_attendance      # formal day-level state
+attendance_confirmations   # teacher S/I/A decisions
+face_profiles              # versioned server-only face template metadata/embedding
+audit_logs                 # admin/teacher changes
+```
+
+Critical accepted/rejected device finalization is transactionally/idempotently persisted.
+
+---
+
+## 10. Auth / RBAC architecture
+
+```text
+Supabase Auth session
+→ verified user subject
+→ profiles
+→ role
+→ homeroom_assignments / authorized classes
+→ application command/query
+```
+
+User-editable Auth metadata is not role authority.
+
+No public staff sign-up exists. First staff profile must be System Admin; later provisioning requires existing active System Admin authority.
+
+---
+
+## 11. Reporting architecture
+
+Reports derive from canonical occurrences/participants/attendance/teacher confirmations rather than manually updated totals.
+
+Before a report range is computed, required schedule occurrences are materialized.
+
+Outputs:
+
+- class/student H/T/S/I/A/Pending;
+- raw attendance participation by session type;
+- Excel-compatible CSV;
+- Print / Save as PDF.
+
+Future dates are clipped from pending totals.
+
+---
+
+## 12. Time model
+
+- canonical instants stored as UTC/timestamptz;
+- institution timezone stored explicitly;
+- session windows and school dates resolved in institution-local time;
+- device timestamps require timezone and pass clock-skew/replay guard;
+- no attendance rule depends implicitly on server/laptop timezone.
+
+---
+
+## 13. Repository layout
 
 ```text
 attendance-system/
 ├─ src/
-│  ├─ app/                    # Next.js routes, API routes, UI
-│  ├─ components/             # reusable UI
-│  ├─ contracts/              # versioned device/application DTOs
-│  ├─ demo/                   # deterministic simulator adapters/fixtures
-│  └─ domain/                 # framework-light business rules
-├─ database/                  # migration/schema workspace
+│  ├─ app/                         # Next routes/UI/API/server actions
+│  ├─ application/                 # orchestration/pure application services
+│  ├─ contracts/                   # device/application DTO contracts
+│  ├─ demo/                        # deterministic recruiter fixtures
+│  ├─ domain/                      # canonical business rules
+│  ├─ infrastructure/              # Supabase/face/device/report adapters
+│  └─ lib/                         # auth/device helpers
 ├─ services/
-│  └─ face-service/           # added when real biometric service begins
-├─ device/
-│  ├─ serial-bridge/          # added when Arduino bridge begins
-│  └─ firmware/               # added when physical hardware work begins
-├─ tests/                     # integration/e2e/contract suites as needed
+│  └─ face-service/                # private FastAPI YuNet/SFace service
+├─ supabase/
+│  ├─ migrations/
+│  └─ seed.sql
+├─ scripts/                        # staff/device provisioning tooling
 ├─ docs/
-├─ AGENTS.md
-├─ SKILLS.md
-└─ WORK.md
+└─ .github/workflows/ci.yml
 ```
 
-Do not move the web app into `apps/web` merely to look like a monorepo. Introduce workspace tooling only when multiple real packages/services justify it.
+Physical serial bridge/firmware folders should be added only when actual hardware work begins.
 
 ---
 
-## 13. Observability
+## 14. Current deployment/test topology
 
-At minimum plan for:
+Local V1 user test:
 
-- structured application logs;
-- request/event IDs propagated across device → attendance → face service;
-- device last-seen/health state;
-- rejected verification metrics;
-- domain error classification;
-- audit logs for privileged mutations.
+```mermaid
+flowchart LR
+    Browser --> Next[Next.js localhost:3000]
+    Next --> Supa[Dedicated Supabase]
+    Next --> Face[FastAPI localhost:8000]
+    Device[Device / API test client] --> Next
+```
 
-Do not log raw biometric payloads or secrets.
-
----
-
-## 14. Failure strategy
-
-The terminal must receive explicit outcomes rather than hanging indefinitely.
-
-Examples:
-
-- database unavailable → temporary system error; do not pretend attendance succeeded;
-- face service unavailable → verification service error; do not classify as face mismatch;
-- duplicate request → return prior/idempotent result when possible;
-- no session → no attendance created;
-- invalid device credentials → reject before processing student data.
-
-Offline queuing for physical devices is a post-MVP capability unless explicitly promoted.
+The face service should remain private/server-side in deployed environments.
 
 ---
 
-## 15. Remaining architecture gates
+## 15. V1 automated evidence
 
-The following are deliberately deferred until their implementation slice:
+GitHub CI verifies:
 
-1. exact face verification engine/model and calibration process;
-2. public recruiter demo vs authenticated management deployment isolation;
-3. demo data-reset strategy after persistence exists;
-4. initial report export library/template;
-5. biometric reference/snapshot storage and retention policy;
-6. overlapping active-session routing policy.
+- Node dependency install;
+- lint;
+- TypeScript;
+- Vitest;
+- production build;
+- Python dependency install;
+- Python compile;
+- pytest;
+- official YuNet/SFace download;
+- SHA-256 model verification;
+- OpenCV model initialization.
 
-Database provider and repository layout are no longer open: use a dedicated Supabase project and the app-first layout defined above.
+Live Supabase transaction smoke verifies MATCH persistence/replay and MISMATCH rejection; smoke data is rolled back.
+
+The next validation layer is the user's real browser camera/login/device-flow test documented in `docs/13-V1-TESTING-RUNBOOK.md`.
+
+---
+
+## 16. Explicit future hardening
+
+Not part of the V1-complete software claim:
+
+- liveness/presentation-attack detection;
+- camera/population-specific threshold calibration;
+- final overlapping-session routing priority;
+- physical Arduino/ESP firmware/bridge validation;
+- production edge rate limiting/observability/backups;
+- real-school biometric privacy/consent/legal approval.
