@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
+import { SCHOOL } from "@/config/school";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Smart Attendance System",
-    template: "%s | Smart Attendance System",
+    default: `${SCHOOL.systemName} | ${SCHOOL.name}`,
+    template: `%s | ${SCHOOL.name}`,
   },
-  description:
-    "Hardware-ready RFID and face-verification attendance system rebuilt from a 2025 P5 SMK project.",
+  description: `${SCHOOL.systemDescription} Digunakan sebagai sistem pengelolaan kehadiran ${SCHOOL.name}.`,
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
