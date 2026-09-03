@@ -41,3 +41,23 @@ export interface ClassAttendanceReport {
   sessionTypes: SessionParticipationSummary[];
   policyNotes: string[];
 }
+
+export interface ReportingAcademicYear {
+  id: string;
+  label: string;
+  startsOn: string;
+  endsOn: string;
+}
+
+export interface ReportingTerm {
+  id: string;
+  name: string;
+  sequence: number;
+  startsOn: string;
+  endsOn: string;
+}
+
+export interface ReportingPeriodPresets {
+  academicYear?: ReportingAcademicYear;
+  terms: ReportingTerm[];
+}
