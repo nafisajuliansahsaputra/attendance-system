@@ -15,12 +15,16 @@ interface PersistResolvedAttemptRpcRow {
   attendance_record_id: string | null;
 }
 
-function toDatabaseVerificationResult(status: FaceVerificationStatus): string {
+export function toDatabaseVerificationResult(status: FaceVerificationStatus): string {
   switch (status) {
     case "match":
       return "MATCH";
     case "mismatch":
       return "MISMATCH";
+    case "no_face":
+      return "NO_FACE";
+    case "low_quality":
+      return "LOW_QUALITY";
     case "error":
       return "SERVICE_ERROR";
     case "not_required":
