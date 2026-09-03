@@ -2,6 +2,7 @@ import { z } from "zod";
 import type {
   AdminStudentDirectoryRow,
   AssignStudentRfidResult,
+  TransferStudentEnrollmentResult,
 } from "../../application/admin/student-types";
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
@@ -30,6 +31,15 @@ const assignResultSchema = z.object({
   uid: z.string().min(1),
   replacedCount: z.number().int().nonnegative(),
   unchanged: z.boolean(),
+});
+
+const transferResultSchema = z.object({
+  studentId: z.string().uuid(),
+  enrollmentId: z.string().uuid(),
+  classId: z.string().uuid(),
+  effectiveOn: z.string().date(),
+  unchanged: z.boolean(),
+  previousEnrollmentId: z.string().uuid().nullable(),
 });
 
 export function parseAdminStudentDirectory(raw: unknown): AdminStudentDirectoryRow[] {
@@ -64,4 +74,26 @@ export async function assignStudentRfid(input: {
   });
 
   return assignResultSchema.parse(raw);
+}
+
+export async function transferStudentEnrollment(input: {
+  actorUserId: string;
+  studentId: string;
+  targetClassId: string;
+  effectiveOn: string;
+  note?: string;
+}): Promise<TransferStudentEnrollmentResult> {
+  const raw = await callSupabaseAdminRpc<unknown>("transfer_student_enrollment", {
+    p_actor_user_id: input.actorUserId,
+    p_student_id: input.studentId,
+    p_target_class_id: input.targetClassId,
+    p_effective_on: input.effectiveOn,
+    p_note: input.note?.trim() || null,
+  });
+  const parsed = transferResultSchema.parse(raw);
+
+  return {
+    ...parsed,
+    previousEnrollmentId: parsed.previousEnrollmentId ?? undefined,
+  };
 }
