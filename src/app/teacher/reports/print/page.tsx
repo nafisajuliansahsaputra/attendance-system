@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { SCHOOL } from "@/config/school";
 import { getClassAttendanceReport } from "@/infrastructure/reports/supabase-class-report";
 import { requireAuthorizedUser } from "@/lib/auth/require-authorized-user";
 import { PrintReportButton } from "./print-button";
@@ -23,7 +24,7 @@ const querySchema = z
   })
   .refine((value) => value.from <= value.to, {
     path: ["from"],
-    message: "from must be before or equal to to",
+    message: "Tanggal awal harus lebih awal atau sama dengan tanggal akhir",
   });
 
 function sessionLabel(type: string) {
@@ -35,7 +36,7 @@ function sessionLabel(type: string) {
     ASHAR: "Sholat Ashar",
     CEREMONY: "Upacara",
     SCHOOL_ACTIVITY: "Kegiatan sekolah",
-    CUSTOM: "Kegiatan lain",
+    CUSTOM: "Kegiatan lainnya",
   };
 
   return labels[type] ?? type.replaceAll("_", " ");
@@ -111,9 +112,10 @@ export default async function PrintReportPage({
 
       <header className="border-b-2 border-black pb-5">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-black/55">
-          Sistem Absensi
+          {SCHOOL.name}
         </p>
-        <h1 className="mt-2 text-3xl font-bold">Rekap Absensi Kelas</h1>
+        <h1 className="mt-2 text-3xl font-bold">Rekap Kehadiran Siswa</h1>
+        <p className="mt-2 text-sm text-black/60">{SCHOOL.systemName}</p>
         <div className="mt-4 grid gap-1 text-sm sm:grid-cols-2">
           <p>
             <span className="font-semibold">Kelas:</span> {report.class.name}
@@ -126,14 +128,14 @@ export default async function PrintReportPage({
 
       <section className="report-print-section mt-6 grid grid-cols-4 gap-3 lg:grid-cols-8">
         {[
-          ["Siswa", report.totals.students],
+          ["Jumlah siswa", report.totals.students],
           ["Hari wajib", report.totals.requiredStudentDays],
           ["Hadir", report.totals.present],
           ["Terlambat", report.totals.late],
           ["Sakit", report.totals.sakit],
           ["Izin", report.totals.izin],
           ["Alpa", report.totals.alpa],
-          ["Pending", report.totals.pending],
+          ["Belum dikonfirmasi", report.totals.pending],
         ].map(([label, value]) => (
           <article key={label} className="border border-black/20 p-3">
             <p className="text-[11px] uppercase tracking-wide text-black/55">{label}</p>
@@ -148,16 +150,16 @@ export default async function PrintReportPage({
           <table className="report-print-table w-full border-collapse text-left text-xs">
             <thead>
               <tr className="bg-black/[0.04]">
-                <th className="border-b border-black/25 px-3 py-2">No</th>
+                <th className="border-b border-black/25 px-3 py-2">No.</th>
                 <th className="border-b border-black/25 px-3 py-2">NIS</th>
-                <th className="border-b border-black/25 px-3 py-2">Nama</th>
-                <th className="border-b border-black/25 px-3 py-2">Wajib</th>
+                <th className="border-b border-black/25 px-3 py-2">Nama siswa</th>
+                <th className="border-b border-black/25 px-3 py-2">Hari wajib</th>
                 <th className="border-b border-black/25 px-3 py-2">Hadir</th>
                 <th className="border-b border-black/25 px-3 py-2">Terlambat</th>
                 <th className="border-b border-black/25 px-3 py-2">Sakit</th>
                 <th className="border-b border-black/25 px-3 py-2">Izin</th>
                 <th className="border-b border-black/25 px-3 py-2">Alpa</th>
-                <th className="border-b border-black/25 px-3 py-2">Pending</th>
+                <th className="border-b border-black/25 px-3 py-2">Belum dikonfirmasi</th>
               </tr>
             </thead>
             <tbody>
@@ -182,12 +184,12 @@ export default async function PrintReportPage({
 
       <section className="report-print-section mt-7 grid gap-6 lg:grid-cols-2">
         <div>
-          <h2 className="text-lg font-bold">Partisipasi sesi</h2>
+          <h2 className="text-lg font-bold">Kehadiran kegiatan & sesi sekolah</h2>
           <table className="mt-3 w-full border-collapse text-xs">
             <thead>
               <tr className="bg-black/[0.04]">
-                <th className="border border-black/20 px-3 py-2 text-left">Sesi</th>
-                <th className="border border-black/20 px-3 py-2 text-left">Terjadwal</th>
+                <th className="border border-black/20 px-3 py-2 text-left">Jenis sesi</th>
+                <th className="border border-black/20 px-3 py-2 text-left">Dijadwalkan</th>
                 <th className="border border-black/20 px-3 py-2 text-left">Hadir</th>
               </tr>
             </thead>
@@ -210,7 +212,7 @@ export default async function PrintReportPage({
         </div>
 
         <div>
-          <h2 className="text-lg font-bold">Catatan sistem</h2>
+          <h2 className="text-lg font-bold">Catatan perhitungan</h2>
           <ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-5 text-black/70">
             {report.policyNotes.map((note) => (
               <li key={note}>{note}</li>
@@ -220,7 +222,7 @@ export default async function PrintReportPage({
       </section>
 
       <footer className="mt-10 border-t border-black/20 pt-4 text-[10px] leading-4 text-black/55">
-        Dokumen ini dibuat dari attendance canonical, participant schedule snapshot, dan konfirmasi wali kelas yang tersimpan di sistem.
+        Dokumen ini dibuat oleh {SCHOOL.systemName} {SCHOOL.name} berdasarkan data absensi, jadwal peserta, dan konfirmasi wali kelas yang tersimpan di sistem.
       </footer>
     </main>
   );
