@@ -37,3 +37,31 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+  face-service:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/face-service
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/face-service/requirements.txt
+
+      - name: Install face-service dependencies
+        run: python -m pip install --disable-pip-version-check -r requirements.txt
+
+      - name: Compile Python sources
+        run: python -m compileall -q app scripts tests
+
+      - name: Face-service contract tests
+        env:
+          PYTHONPATH: .
+        run: python -m pytest -q
