@@ -302,6 +302,27 @@ The recruiter simulator may provide deterministic fixture resolutions for RFID/s
 
 ---
 
+## ADR-016 — Ambiguous overlapping sessions fail closed
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Context
+
+The final business priority for two attendance sessions whose windows overlap is not yet defined. Silently selecting the first database row would make attendance assignment depend on query ordering rather than an explicit school rule.
+
+### Decision
+
+The context resolver may return multiple candidate sessions, but the application layer must reject/fail closed when more than one candidate remains until an explicit routing policy resolves the ambiguity.
+
+### Consequences
+
+- no attendance is silently assigned to an arbitrary overlapping session;
+- future priority/relationship rules can be added without changing the database resolver contract;
+- overlap becomes a visible configuration problem instead of hidden data corruption.
+
+---
+
 # Proposed / pending decisions
 
 Create a new ADR when each is resolved:
@@ -317,4 +338,4 @@ Create a new ADR when each is resolved:
 - biometric retention;
 - demo vs production deployment isolation;
 - report/export templates;
-- overlapping session/device routing policy.
+- final overlapping session priority/device routing policy.
