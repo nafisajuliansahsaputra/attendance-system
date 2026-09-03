@@ -16,22 +16,37 @@ interface ApiResponse {
   livenessChecked?: boolean;
 }
 
+function reasonLabel(reason?: string) {
+  switch (reason) {
+    case "IMAGE_TOO_BLURRY":
+      return "gambar terlalu buram";
+    case "FACE_TOO_SMALL":
+      return "wajah terlalu jauh dari kamera";
+    case "IMAGE_BRIGHTNESS_OUT_OF_RANGE":
+      return "pencahayaan terlalu gelap atau terlalu terang";
+    case "EMPTY_FACE_REGION":
+      return "area wajah tidak dapat dibaca";
+    default:
+      return reason;
+  }
+}
+
 function humanMessage(payload: ApiResponse) {
   switch (payload.code) {
     case "FACE_ENROLLED":
-      return "Face profile berhasil disimpan. Foto mentah tidak disimpan oleh Attendance System.";
+      return "Profil wajah berhasil disimpan. Foto asli tidak disimpan oleh Sistem Absensi Siswa.";
     case "NO_FACE":
       return "Wajah belum terdeteksi. Pastikan wajah terlihat utuh dan berada di tengah kamera.";
     case "MULTIPLE_FACES":
-      return "Terdeteksi lebih dari satu wajah. Enrollment harus dilakukan satu orang saja.";
+      return "Terdeteksi lebih dari satu wajah. Pendaftaran harus dilakukan oleh satu siswa saja.";
     case "LOW_QUALITY":
-      return `Kualitas gambar belum cukup${payload.reason ? ` (${payload.reason})` : ""}. Perbaiki cahaya/fokus lalu coba lagi.`;
+      return `Kualitas gambar belum mencukupi${payload.reason ? ` (${reasonLabel(payload.reason)})` : ""}. Perbaiki pencahayaan atau fokus kamera lalu coba lagi.`;
     case "FACE_SERVICE_UNAVAILABLE":
-      return "Face service sedang tidak tersedia. Pastikan service lokal sudah aktif dan model sudah terpasang.";
+      return "Layanan pengenal wajah sedang tidak tersedia. Pastikan layanan verifikasi wajah sudah aktif.";
     case "INVALID_FACE_SAMPLE":
-      return "Frame kamera tidak dapat diproses. Coba ambil ulang gambar.";
+      return "Gambar dari kamera tidak dapat diproses. Silakan ambil gambar kembali.";
     default:
-      return "Enrollment belum berhasil. Coba lagi atau periksa konfigurasi server.";
+      return "Pendaftaran wajah belum berhasil. Silakan coba lagi atau periksa layanan verifikasi wajah.";
   }
 }
 
@@ -76,7 +91,7 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
       }
     } catch {
       setMessage(
-        "Kamera tidak dapat dibuka. Pastikan izin kamera diberikan dan halaman berjalan melalui HTTPS atau localhost.",
+        "Kamera tidak dapat dibuka. Pastikan izin kamera sudah diberikan pada browser.",
       );
     }
   }
@@ -100,7 +115,7 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
   async function enroll() {
     const imageBase64 = captureJpeg();
     if (!imageBase64) {
-      setMessage("Frame kamera belum siap. Tunggu sebentar lalu coba lagi.");
+      setMessage("Kamera belum siap mengambil gambar. Tunggu sebentar lalu coba lagi.");
       return;
     }
 
@@ -123,7 +138,7 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
         router.refresh();
       }
     } catch {
-      setMessage("Gagal menghubungi server enrollment. Coba lagi.");
+      setMessage("Tidak dapat menghubungi layanan pendaftaran wajah. Silakan coba lagi.");
     } finally {
       setSubmitting(false);
     }
@@ -131,7 +146,7 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
 
   return (
     <div className="grid gap-5">
-      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-black">
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-slate-950">
         <video
           ref={videoRef}
           muted
@@ -148,15 +163,15 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
           disabled={submitting}
           className="rounded-xl border border-[var(--border)] px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--surface-soft)] disabled:opacity-50"
         >
-          {cameraReady ? "Restart kamera" : "Aktifkan kamera"}
+          {cameraReady ? "Mulai ulang kamera" : "Aktifkan kamera"}
         </button>
         <button
           type="button"
           onClick={enroll}
           disabled={!cameraReady || submitting}
-          className="rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-semibold text-[#07100d] disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {submitting ? "Memproses…" : "Ambil frame & enroll"}
+          {submitting ? "Memproses…" : "Ambil gambar & daftarkan wajah"}
         </button>
         {cameraReady ? (
           <button
@@ -172,13 +187,13 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
 
       <label>
         <span className="mb-2 block text-xs font-medium uppercase tracking-wider text-[var(--muted)]">
-          Catatan enrollment (opsional)
+          Catatan pendaftaran (opsional)
         </span>
         <input
           value={note}
           onChange={(event) => setNote(event.target.value.slice(0, 300))}
-          placeholder="Contoh: enrollment ulang karena perubahan penampilan"
-          className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+          placeholder="Contoh: daftar ulang karena perubahan penampilan"
+          className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
         />
       </label>
 
@@ -186,8 +201,8 @@ export function FaceEnrollmentCamera({ studentId }: FaceEnrollmentCameraProps) {
         <div
           className={`rounded-xl border px-4 py-3 text-sm ${
             success
-              ? "border-[color:rgba(74,222,128,0.25)] bg-[color:rgba(74,222,128,0.07)] text-[var(--success)]"
-              : "border-[color:rgba(251,191,36,0.25)] bg-[color:rgba(251,191,36,0.07)] text-[var(--warning)]"
+              ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+              : "border-amber-200 bg-amber-50 text-amber-800"
           }`}
         >
           {message}
