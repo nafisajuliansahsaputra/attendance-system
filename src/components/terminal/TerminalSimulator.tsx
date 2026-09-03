@@ -3,6 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
+  SCHOOL,
+  attendanceOutcomeLabel,
+  faceStatusLabel,
+} from "@/config/school";
+import {
   demoCards,
   demoEnvironments,
   demoFaces,
@@ -37,34 +42,34 @@ type TerminalResponse = {
 
 const stageMeta: Record<TerminalStage, { eyebrow: string; title: string; description: string }> = {
   idle: {
-    eyebrow: "SYSTEM READY",
+    eyebrow: "SISTEM SIAP",
     title: "Tempelkan kartu RFID",
-    description: "Pilih kartu virtual di hardware dock untuk memulai transaksi.",
+    description: "Pilih kartu uji, wajah di kamera, dan kondisi jadwal sebelum memulai pemindaian.",
   },
   rfid: {
-    eyebrow: "RFID READER",
+    eyebrow: "PEMBACA RFID",
     title: "Membaca UID kartu...",
-    description: "Terminal mengirim identitas kartu ke adapter RFID.",
+    description: "Terminal membaca nomor kartu untuk mencari siswa yang terdaftar.",
   },
   identity: {
-    eyebrow: "IDENTITY RESOLVER",
+    eyebrow: "DATA SISWA",
     title: "Mencari pemilik kartu...",
-    description: "Backend memetakan UID ke siswa dan konteks sesi aktif.",
+    description: "Sistem memetakan UID kartu ke identitas siswa dan kelasnya.",
   },
   face: {
-    eyebrow: "FACE VERIFICATION",
-    title: "Memverifikasi wajah...",
-    description: "Adapter kamera mengirim hasil verifikasi 1:1 ke engine.",
+    eyebrow: "VERIFIKASI WAJAH",
+    title: "Memeriksa kecocokan wajah...",
+    description: "Wajah yang dipilih dibandingkan dengan pemilik kartu yang terdaftar.",
   },
   decision: {
-    eyebrow: "CANONICAL ENGINE",
+    eyebrow: "PEMERIKSAAN ABSENSI",
     title: "Menentukan hasil absensi...",
-    description: "Client tidak mengirim outcome. Engine memutuskan dari input yang sudah di-resolve.",
+    description: "Sistem memeriksa kartu, wajah, jadwal, sasaran siswa, dan absensi ganda.",
   },
   done: {
-    eyebrow: "TRANSACTION COMPLETE",
-    title: "Transaksi selesai",
-    description: "Hasil akhir berasal dari canonical attendance engine.",
+    eyebrow: "PROSES SELESAI",
+    title: "Pemeriksaan selesai",
+    description: "Hasil akhir ditentukan oleh aturan absensi yang sama dengan jalur perangkat.",
   },
 };
 
@@ -73,10 +78,10 @@ function wait(ms: number) {
 }
 
 function ledClass(led: AttendanceOutcome["feedback"]["led"] | "off") {
-  if (led === "green") return "bg-emerald-400 shadow-[0_0_42px_rgba(74,222,128,0.75)]";
-  if (led === "red") return "bg-rose-400 shadow-[0_0_42px_rgba(251,113,133,0.75)]";
-  if (led === "amber") return "bg-amber-300 shadow-[0_0_42px_rgba(252,211,77,0.55)]";
-  return "bg-slate-700";
+  if (led === "green") return "bg-emerald-500 shadow-[0_0_26px_rgba(16,185,129,0.42)]";
+  if (led === "red") return "bg-rose-500 shadow-[0_0_26px_rgba(244,63,94,0.34)]";
+  if (led === "amber") return "bg-amber-400 shadow-[0_0_26px_rgba(245,158,11,0.3)]";
+  return "bg-slate-300";
 }
 
 async function playBeepPattern(outcome: AttendanceOutcome) {
@@ -92,7 +97,6 @@ async function playBeepPattern(outcome: AttendanceOutcome) {
     oscillator.frequency.value = outcome.feedback.tone === "danger" ? 920 : 760;
     gain.gain.setValueAtTime(0.045, startAt);
     gain.gain.exponentialRampToValueAtTime(0.001, startAt + durationMs / 1000);
-
     oscillator.connect(gain);
     gain.connect(context.destination);
     oscillator.start(startAt);
@@ -107,16 +111,6 @@ function sessionKey(environmentId: DemoEnvironmentId) {
   if (environmentId === "arrival-open" || environmentId === "arrival-late") return "arrival";
   if (environmentId === "dhuha-x") return "dhuha-x";
   return "none";
-}
-
-function initials(label: string) {
-  return label
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0])
-    .join("")
-    .toUpperCase();
 }
 
 export function TerminalSimulator() {
@@ -154,13 +148,13 @@ export function TerminalSimulator() {
 
     try {
       setStage("rfid");
-      await wait(420);
+      await wait(380);
       setStage("identity");
-      await wait(520);
+      await wait(460);
 
       if (cardId !== "unknown") {
         setStage("face");
-        await wait(650);
+        await wait(600);
       }
 
       setStage("decision");
@@ -178,9 +172,9 @@ export function TerminalSimulator() {
       });
 
       const payload = (await request.json()) as TerminalResponse & { error?: string };
-      if (!request.ok) throw new Error(payload.error ?? "Virtual terminal request failed");
+      if (!request.ok) throw new Error(payload.error ?? "Simulasi terminal gagal diproses");
 
-      await wait(420);
+      await wait(380);
       setResponse(payload);
       setStage("done");
 
@@ -192,7 +186,7 @@ export function TerminalSimulator() {
 
       await playBeepPattern(payload.outcome);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Unknown terminal error");
+      setError(reason instanceof Error ? reason.message : "Terjadi kesalahan pada simulasi terminal");
       setStage("idle");
     } finally {
       setLoading(false);
@@ -208,288 +202,207 @@ export function TerminalSimulator() {
 
   return (
     <main className="min-h-screen px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-      <div className="mx-auto w-full max-w-[1500px]">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 px-1">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
-              Recruiter Experience · Virtual Hardware
-            </p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em] sm:text-3xl">
-              Smart Attendance Terminal
-            </h1>
-          </div>
+      <div className="mx-auto w-full max-w-[1450px]">
+        <header className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white px-5 py-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">A12</span>
+            <div>
+              <p className="text-sm font-semibold">{SCHOOL.name}</p>
+              <p className="text-xs text-[var(--muted)]">Simulasi Perangkat Absensi</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={resetTerminal}
-              className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs text-[var(--muted)] transition hover:text-white"
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-xs font-semibold transition hover:bg-[var(--surface-soft)]"
             >
-              Reset demo state
+              Atur ulang simulasi
             </button>
             <Link
-              href="/"
-              className="rounded-full border border-[var(--border)] bg-[var(--surface)] px-4 py-2 text-xs text-[var(--muted)] transition hover:text-white"
+              href="/terminal"
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-xs font-semibold transition hover:bg-[var(--surface-soft)]"
             >
-              ← Project overview
+              Uji dengan kamera asli
+            </Link>
+            <Link
+              href="/"
+              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-xs font-semibold transition hover:bg-[var(--surface-soft)]"
+            >
+              ← Halaman utama
             </Link>
           </div>
-        </div>
+        </header>
 
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_430px]">
-          <section className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] shadow-2xl shadow-black/20">
+          <section className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white shadow-xl shadow-emerald-950/5">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] px-6 py-5 sm:px-8">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-300">
-                  Terminal 01 · Hardware Adapter Boundary
-                </p>
-                <p className="mt-2 text-sm text-[var(--muted)]">
-                  Input virtual, aturan keputusan nyata. Tidak ada tombol untuk memilih hasil.
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--success)]">Terminal Absensi 01</p>
+                <h1 className="mt-2 text-2xl font-semibold">Simulasi alur perangkat sekolah</h1>
+                <p className="mt-2 text-sm text-[var(--muted)]">Masukkan kondisi perangkat, lalu sistem menentukan hasil absensi.</p>
               </div>
-              <div className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-black/15 px-3 py-2 text-xs text-[var(--muted)]">
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Canonical engine online
-              </div>
+              <span className="flex items-center gap-2 rounded-full bg-[var(--success-soft)] px-3 py-2 text-xs font-semibold text-[var(--success-strong)]">
+                <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
+                Sistem siap
+              </span>
             </header>
 
-            <div className="grid min-h-[690px] lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div className="grid min-h-[660px] lg:grid-cols-[minmax(0,1fr)_310px]">
               <div className="flex flex-col items-center justify-center border-b border-[var(--border)] px-6 py-12 text-center lg:border-b-0 lg:border-r sm:px-10">
                 <div className={`mb-7 h-5 w-5 rounded-full transition-all duration-300 ${ledClass(outcome?.feedback.led ?? "off")}`} />
 
-                <div className="relative mb-9 aspect-[4/3] w-full max-w-[520px] overflow-hidden rounded-[2rem] border border-[var(--border)] bg-black/20">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(52,211,153,0.08),transparent_60%)]" />
-                  <div className="absolute left-5 top-5 flex items-center gap-2 rounded-full border border-white/10 bg-black/30 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-300 backdrop-blur">
-                    <span className={`h-1.5 w-1.5 rounded-full ${stage === "face" ? "animate-pulse bg-emerald-400" : "bg-slate-600"}`} />
-                    Camera Adapter
-                  </div>
-
-                  <div className="absolute inset-0 grid place-items-center px-8">
-                    <div className="relative grid h-36 w-36 place-items-center rounded-full border border-emerald-300/20 bg-emerald-300/[0.03]">
-                      <div className={`absolute inset-3 rounded-full border border-dashed border-emerald-300/25 ${stage === "face" ? "animate-spin" : ""}`} />
-                      <div className="grid h-24 w-24 place-items-center rounded-full bg-black/25 text-3xl font-semibold text-slate-200">
-                        {faceId === "no-face" ? "—" : faceId === "low-quality" ? "≈" : initials(selectedFace.label)}
-                      </div>
+                <div className="mb-8 grid aspect-[4/3] w-full max-w-[520px] place-items-center rounded-[2rem] border border-[var(--border)] bg-[var(--surface-soft)]/65 p-8">
+                  <div>
+                    <div className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-[var(--border-strong)] bg-white text-3xl font-semibold text-[var(--success)]">
+                      ◎
                     </div>
-                  </div>
-
-                  <div className="absolute bottom-5 left-5 right-5 flex items-center justify-between rounded-2xl border border-white/10 bg-black/35 px-4 py-3 text-left backdrop-blur">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Camera subject</p>
-                      <p className="mt-1 text-sm font-semibold text-white">{selectedFace.label}</p>
-                    </div>
-                    <span className="text-xs text-slate-400">Virtual sample</span>
+                    <p className="mt-5 text-sm font-semibold">Area kamera dan pembaca RFID virtual</p>
+                    <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                      Halaman ini tidak memakai biometrik asli. Gunakan terminal kamera untuk pengujian wajah sebenarnya.
+                    </p>
                   </div>
                 </div>
 
                 {outcome ? (
                   <div className="max-w-2xl">
-                    <p
-                      className={`text-xs font-bold uppercase tracking-[0.22em] ${
-                        outcome.accepted
-                          ? "text-emerald-300"
-                          : outcome.feedback.led === "red"
-                            ? "text-rose-300"
-                            : "text-amber-200"
-                      }`}
-                    >
-                      {outcome.code}
+                    <p className={`text-xs font-bold uppercase tracking-[0.18em] ${outcome.accepted ? "text-emerald-700" : outcome.feedback.led === "red" ? "text-rose-700" : "text-amber-700"}`}>
+                      {attendanceOutcomeLabel(outcome.code)}
                     </p>
                     <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
                       {outcome.student?.name ?? "Kartu tidak dikenali"}
                     </h2>
                     <p className="mt-3 text-sm text-[var(--muted)]">
                       {outcome.student?.className ?? selectedCard.uid}
-                      {outcome.session ? ` · ${outcome.session.name}` : " · Tidak ada sesi aktif"}
+                      {outcome.session ? ` · ${outcome.session.name}` : " · Tidak ada jadwal aktif"}
                     </p>
-                    <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-slate-200">
-                      {outcome.message}
-                    </p>
+                    <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[var(--muted)]">{outcome.message}</p>
                   </div>
                 ) : (
                   <div className="max-w-xl">
-                    <p className="text-xs font-bold uppercase tracking-[0.22em] text-[var(--muted)]">
-                      {currentStage.eyebrow}
-                    </p>
-                    <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                      {currentStage.title}
-                    </h2>
-                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
-                      {currentStage.description}
-                    </p>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted)]">{currentStage.eyebrow}</p>
+                    <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">{currentStage.title}</h2>
+                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">{currentStage.description}</p>
                   </div>
                 )}
               </div>
 
-              <aside className="bg-black/10 p-5 sm:p-6">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                  Live transaction trace
-                </p>
+              <aside className="bg-[var(--surface-soft)]/55 p-5 sm:p-6">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Alur transaksi</p>
                 <div className="mt-5 space-y-3">
                   {[
-                    ["RFID", response?.resolution.rfidUid ?? selectedCard.uid, stage === "rfid"],
-                    ["Identity", response?.resolution.student?.name ?? (selectedCard.registered ? selectedCard.label : "Pending"), stage === "identity"],
-                    ["Face", response?.resolution.faceStatus ?? selectedFace.detail, stage === "face"],
-                    ["Session", response?.resolution.session?.name ?? selectedEnvironment.label, false],
-                    ["Decision", outcome?.code ?? "Waiting for engine", stage === "decision"],
+                    ["Kartu RFID", response?.resolution.rfidUid ?? selectedCard.uid, stage === "rfid"],
+                    ["Pemilik kartu", response?.resolution.student?.name ?? (selectedCard.registered ? selectedCard.label : "Belum ditemukan"), stage === "identity"],
+                    ["Wajah", faceStatusLabel(response?.resolution.faceStatus) || selectedFace.detail, stage === "face"],
+                    ["Jadwal", response?.resolution.session?.name ?? selectedEnvironment.label, false],
+                    ["Keputusan", outcome ? attendanceOutcomeLabel(outcome.code) : "Menunggu sistem", stage === "decision"],
                   ].map(([label, value, active]) => (
-                    <div key={String(label)} className="rounded-2xl border border-[var(--border)] bg-black/15 p-4">
+                    <div key={String(label)} className="rounded-2xl border border-[var(--border)] bg-white p-4">
                       <div className="flex items-center justify-between gap-3">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-                        <span className={`h-2 w-2 rounded-full ${active ? "animate-pulse bg-emerald-400" : "bg-slate-700"}`} />
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">{label}</p>
+                        <span className={`h-2 w-2 rounded-full ${active ? "animate-pulse bg-emerald-500" : "bg-slate-300"}`} />
                       </div>
-                      <p className="mt-2 break-words text-sm font-medium text-slate-200">{value}</p>
+                      <p className="mt-2 break-words text-sm font-medium">{value}</p>
                     </div>
                   ))}
                 </div>
-
-                <div className="mt-5 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.05] p-4 text-xs leading-5 text-emerald-100/80">
-                  RFID, camera, dan waktu adalah input adapter. Outcome hanya dibuat oleh canonical attendance engine.
-                </div>
               </aside>
             </div>
-
-            <footer className="grid gap-3 border-t border-[var(--border)] bg-black/10 px-6 py-5 text-xs text-[var(--muted)] sm:grid-cols-4 sm:px-8">
-              <span>RFID Adapter: virtual</span>
-              <span>Face Adapter: virtual 1:1</span>
-              <span>Persistence: ephemeral</span>
-              <span>Decision Engine: canonical</span>
-            </footer>
           </section>
 
-          <aside className="rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-5 shadow-2xl shadow-black/10 lg:p-6">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">Virtual Hardware Dock</p>
-              <h2 className="mt-2 text-lg font-semibold">Build a real transaction</h2>
-              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
-                Recruiter memilih input perangkat, bukan outcome. Coba kartu dan wajah yang sama, lalu tukar wajah untuk menguji anti titip-absen.
-              </p>
-            </div>
+          <aside className="rounded-[2rem] border border-[var(--border)] bg-white p-5 shadow-sm lg:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--success)]">Masukan simulasi</p>
+            <h2 className="mt-2 text-xl font-semibold">Atur kondisi sebelum kartu ditempelkan</h2>
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+              Pilihan di bawah hanya menentukan kondisi awal. Hasil absensi tetap diputuskan oleh aturan sistem.
+            </p>
 
-            <div className="mt-7">
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">1 · RFID Card</p>
-                <span className="text-[10px] text-slate-600">13.56 MHz virtual</span>
-              </div>
-              <div className="mt-3 grid gap-2">
-                {demoCards.map((card) => {
-                  const active = card.id === cardId;
-                  return (
-                    <button
-                      key={card.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setCardId(card.id);
-                        setResponse(null);
-                        setStage("idle");
-                      }}
-                      className={`group rounded-2xl border p-4 text-left transition ${
-                        active
-                          ? "border-emerald-400/60 bg-emerald-400/10"
-                          : "border-[var(--border)] bg-black/10 hover:bg-[var(--surface-soft)]"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-semibold">{card.label}</p>
-                          <p className="mt-1 text-xs text-[var(--muted)]">{card.className}</p>
-                        </div>
-                        <div className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 font-mono text-[10px] text-slate-400">
-                          {card.uid}
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="mt-6">
+              <p className="text-xs font-semibold">Kartu RFID</p>
+              <div className="mt-2 grid gap-2">
+                {demoCards.map((card) => (
+                  <button
+                    key={card.id}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setCardId(card.id);
+                      setResponse(null);
+                      setStage("idle");
+                    }}
+                    className={`rounded-xl border p-3 text-left transition ${cardId === card.id ? "border-[var(--success)] bg-[var(--success-soft)]" : "border-[var(--border)] bg-white hover:bg-[var(--surface-soft)]"}`}
+                  >
+                    <p className="text-sm font-semibold">{card.label}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{card.uid} · {card.className}</p>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="mt-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">2 · Camera Subject</p>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {demoFaces.map((face) => {
-                  const active = face.id === faceId;
-                  return (
-                    <button
-                      key={face.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setFaceId(face.id);
-                        setResponse(null);
-                        setStage("idle");
-                      }}
-                      className={`rounded-2xl border p-3 text-left transition ${
-                        active
-                          ? "border-emerald-400/60 bg-emerald-400/10"
-                          : "border-[var(--border)] bg-black/10 hover:bg-[var(--surface-soft)]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/25 text-xs font-semibold">
-                          {face.id === "no-face" ? "—" : face.id === "low-quality" ? "≈" : initials(face.label)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-xs font-semibold">{face.label}</p>
-                          <p className="mt-0.5 truncate text-[10px] text-[var(--muted)]">{face.detail}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+            <div className="mt-5">
+              <p className="text-xs font-semibold">Wajah di depan kamera</p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {demoFaces.map((face) => (
+                  <button
+                    key={face.id}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setFaceId(face.id);
+                      setResponse(null);
+                      setStage("idle");
+                    }}
+                    className={`rounded-xl border p-3 text-left transition ${faceId === face.id ? "border-[var(--success)] bg-[var(--success-soft)]" : "border-[var(--border)] bg-white hover:bg-[var(--surface-soft)]"}`}
+                  >
+                    <p className="text-sm font-semibold">{face.label}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{face.detail}</p>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="mt-7">
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">3 · School Context</p>
-              <div className="mt-3 grid gap-2">
-                {demoEnvironments.map((environment) => {
-                  const active = environment.id === environmentId;
-                  return (
-                    <button
-                      key={environment.id}
-                      type="button"
-                      disabled={loading}
-                      onClick={() => {
-                        setEnvironmentId(environment.id);
-                        setResponse(null);
-                        setStage("idle");
-                      }}
-                      className={`rounded-2xl border px-4 py-3 text-left transition ${
-                        active
-                          ? "border-emerald-400/60 bg-emerald-400/10"
-                          : "border-[var(--border)] bg-black/10 hover:bg-[var(--surface-soft)]"
-                      }`}
-                    >
-                      <p className="text-xs font-semibold">{environment.label}</p>
-                      <p className="mt-1 text-[10px] leading-4 text-[var(--muted)]">{environment.detail}</p>
-                    </button>
-                  );
-                })}
+            <div className="mt-5">
+              <p className="text-xs font-semibold">Kondisi jadwal sekolah</p>
+              <div className="mt-2 grid gap-2">
+                {demoEnvironments.map((environment) => (
+                  <button
+                    key={environment.id}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => {
+                      setEnvironmentId(environment.id);
+                      setResponse(null);
+                      setStage("idle");
+                    }}
+                    className={`rounded-xl border p-3 text-left transition ${environmentId === environment.id ? "border-[var(--success)] bg-[var(--success-soft)]" : "border-[var(--border)] bg-white hover:bg-[var(--surface-soft)]"}`}
+                  >
+                    <p className="text-sm font-semibold">{environment.label}</p>
+                    <p className="mt-1 text-xs text-[var(--muted)]">{environment.detail}</p>
+                  </button>
+                ))}
               </div>
             </div>
 
-            {alreadyRecorded ? (
-              <div className="mt-5 rounded-2xl border border-amber-300/20 bg-amber-300/[0.05] p-3 text-xs leading-5 text-amber-100/80">
-                Kartu ini sudah punya transaksi accepted pada sesi yang sama. Scan ulang akan menguji duplicate protection secara alami.
-              </div>
-            ) : null}
+            <div className="mt-5 rounded-xl border border-[var(--border)] bg-[var(--surface-soft)]/55 p-3 text-xs text-[var(--muted)]">
+              Status sesi kartu ini: {alreadyRecorded ? "sudah pernah tercatat" : "belum tercatat"}.
+            </div>
 
             {error ? (
-              <p className="mt-5 rounded-xl bg-rose-400/10 p-3 text-xs text-rose-200">{error}</p>
+              <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-3 text-xs text-rose-700">{error}</div>
             ) : null}
 
             <button
               type="button"
               disabled={loading}
               onClick={runTerminal}
-              className="mt-6 w-full rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-bold text-emerald-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-5 w-full rounded-xl bg-[var(--success)] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[var(--success-strong)] disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {loading ? "Terminal memproses..." : `Tap ${selectedCard.label}`}
+              {loading ? "Memproses pemindaian..." : "Tempelkan kartu RFID"}
             </button>
 
-            <p className="mt-3 text-center text-[10px] leading-4 text-slate-600">
-              Demo tidak menulis ke database produksi. State accepted disimpan sementara di browser untuk menguji scan ulang.
+            <p className="mt-4 text-[11px] leading-5 text-[var(--muted)]">
+              Untuk menguji wajah Anda sendiri dan wajah orang lain secara langsung, gunakan halaman Terminal Absensi Siswa.
             </p>
           </aside>
         </div>
