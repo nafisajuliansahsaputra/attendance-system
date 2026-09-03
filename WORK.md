@@ -1,48 +1,47 @@
 # Current Work State
 
 **Last updated:** 2026-09-03  
-**Current phase:** Database foundation / Phase 2  
-**Coding status:** Active; web foundation and canonical database schema verified
+**Current phase:** Database-backed attendance foundation / Phase 2  
+**Coding status:** Active; web, database schema, and persistence contract verified
 
 This file is the handoff point for the next working session. Read it after `AGENTS.md` and `docs/00-SOURCE-OF-TRUTH.md`.
 
 ---
 
-## 1. What is already locked
-
-Product facts remain governed by `docs/00-SOURCE-OF-TRUTH.md`. Technical implementation decisions accepted on 2026-09-03:
+## 1. Locked implementation direction
 
 - Main app: Next.js App Router + TypeScript + React + Tailwind CSS.
-- Database: PostgreSQL on a **dedicated Supabase project for Attendance System**.
+- Database: PostgreSQL on a dedicated Supabase project for Attendance System.
 - Supabase organization: `natsx portfolio`.
 - Supabase region: Singapore (`ap-southeast-1`).
-- The Attendance System Supabase project is separate from Spall Spill database/Auth/Storage/keys.
-- Repository starts app-first at the root; service boundaries remain explicit.
-- Future face verification remains a separate Python/FastAPI boundary.
-- Future Arduino USB devices use a bridge/adapter; network-capable devices may call the versioned HTTPS Device API.
-- Simulator is an adapter/fixture resolver and may not bypass the canonical attendance decision engine.
+- Attendance System is isolated from Spall Spill database/Auth/Storage/keys.
+- Repository is app-first at the root with explicit domain/application/infrastructure boundaries.
+- Future face verification stays behind a Python/FastAPI boundary.
+- Future Arduino USB uses an adapter/bridge; network-capable hardware can use the versioned HTTPS Device API.
+- Simulator and real hardware must reach the same canonical attendance engine.
 
 ---
 
-## 2. Web/application foundation completed
+## 2. Application foundation completed
 
-- [x] Next.js/TypeScript project scaffold at repository root.
-- [x] Tailwind CSS setup.
-- [x] ESLint + TypeScript + Vitest scripts.
-- [x] CI workflow for lint, typecheck, tests, and production build.
-- [x] Direct dependencies pinned and `package-lock.json` committed for reproducible `npm ci` installs.
-- [x] `/api/health` endpoint.
-- [x] Pure canonical attendance decision engine.
-- [x] Explicit hardware feedback mapping.
+- [x] Next.js/TypeScript/Tailwind scaffold.
+- [x] Reproducible `npm ci` installs with committed lockfile.
+- [x] CI for lint, typecheck, unit tests, and production build.
+- [x] `/api/health`.
+- [x] Canonical attendance decision engine.
+- [x] Hardware feedback semantics for success and face mismatch.
 - [x] Unit coverage for accepted, late, face mismatch, unknown RFID, not eligible, duplicate, and no-session outcomes.
-- [x] Versioned device-contract types started in `src/contracts/device-v1.ts`.
-- [x] Recruiter terminal simulator UI.
-- [x] Demo API validates requests and routes scenarios through the canonical engine.
-- [x] Browser-generated buzzer feedback: one beep on success, rapid repeated beeps on face mismatch.
-- [x] Application-level attendance persistence boundary added.
-- [x] Simulator now routes through the same application service that future database/device adapters will use.
-- [x] Persistence-boundary tests cover accepted and rejected attempts.
-- [x] Foundation CI verified: install, lint, typecheck, unit tests, production build.
+- [x] Versioned device-contract types started.
+- [x] Recruiter terminal simulator.
+- [x] Demo API routed through the canonical engine.
+- [x] Browser buzzer simulation.
+- [x] Application-level persistence interface.
+- [x] Ephemeral demo persistence adapter.
+- [x] Server-only Supabase configuration contract.
+- [x] Privileged Supabase RPC transport using environment-only `SUPABASE_SECRET_KEY`.
+- [x] Supabase attendance persistence adapter.
+- [x] Persistence payload mapping tests.
+- [x] Latest CI slice passes install, lint, typecheck, unit tests, and production build.
 
 ---
 
@@ -50,105 +49,74 @@ Product facts remain governed by `docs/00-SOURCE-OF-TRUTH.md`. Technical impleme
 
 Dedicated project status: **ACTIVE_HEALTHY**.
 
-Canonical database schema now exists live and is mirrored in repository migrations.
+The live database contains 23 canonical tables covering institution/academic structure, users/roles, students/enrollments, RFID, face-profile references, session scheduling, participants, devices, raw events, verification attempts, canonical attendance, school-day status, teacher confirmations, and audit logs.
 
-Implemented tables:
+Security/data rules already implemented:
 
-- `institutions`
-- `academic_years`
-- `terms`
-- `grade_levels`
-- `departments`
-- `classes`
-- `profiles`
-- `homeroom_assignments`
-- `students`
-- `student_enrollments`
-- `rfid_credentials`
-- `face_profiles`
-- `attendance_session_templates`
-- `attendance_schedule_rules`
-- `attendance_session_occurrences`
-- `session_participants`
-- `devices`
-- `device_events`
-- `verification_attempts`
-- `attendance_records`
-- `school_day_attendance`
-- `attendance_confirmations`
-- `audit_logs`
-
-Database rules implemented:
-
-- [x] historical student enrollment is separate from stable student identity;
+- [x] historical enrollment separate from student identity;
 - [x] active RFID UID uniqueness;
 - [x] one active face profile per student;
-- [x] generic session templates/schedules/occurrences rather than fixed Dhuha/Dzuhur/Ashar columns;
-- [x] raw device events are separate from canonical attendance records;
-- [x] verification attempts are separately auditable;
-- [x] Sakit/Izin/Alpa confirmation history is separate from automated attendance facts;
-- [x] updated-at triggers;
-- [x] foreign-key indexes added for expected growth/query paths;
-- [x] RLS enabled on every exposed public table;
-- [x] `anon` and `authenticated` table privileges revoked for the current server-authority phase;
-- [x] no privileged secret stored in GitHub;
-- [x] security advisor warning for mutable function search path fixed.
+- [x] generic attendance session model;
+- [x] raw device events separate from canonical attendance;
+- [x] verification attempts separately auditable;
+- [x] Sakit/Izin/Alpa confirmation history separated from automated facts;
+- [x] RLS enabled on every public table;
+- [x] current browser roles default-deny (`anon`/`authenticated` table privileges revoked);
+- [x] updated-at function search path hardened;
+- [x] foreign-key indexes added;
+- [x] no privileged key committed to GitHub;
+- [x] security advisor has no warning-level finding introduced by the persistence RPC.
 
-Migration history:
+Live migration history:
 
 1. `initial_attendance_domain`
 2. `harden_updated_at_function`
 3. `add_foreign_key_indexes`
+4. `persist_resolved_attendance_attempt_rpc`
 
-Repository mirror:
+The fourth migration adds an atomic, idempotent `persist_resolved_attendance_attempt` RPC. It records the final device event and verification attempt, and creates canonical attendance only when the application/domain outcome was accepted. It validates basic cross-institution/device integrity but does not independently decide whether attendance should be accepted.
 
-- `supabase/migrations/20260903102755_initial_attendance_domain.sql`
-- `supabase/migrations/20260903102840_harden_updated_at_function.sql`
-- `supabase/migrations/20260903103000_add_foreign_key_indexes.sql`
+Repository migrations mirror the live schema under `supabase/migrations/`.
 
 ---
 
-## 4. Important implementation truth
+## 4. Important truth about current runtime
 
-The current demo does **not** claim to perform real biometric recognition yet.
+The recruiter simulator still uses the **ephemeral adapter by default**. This is intentional: fake demo IDs are not inserted into the production-shaped database.
 
-Demo scenarios deterministically resolve RFID/session/face context, then invoke the canonical attendance engine. This is intentional. Real face verification will replace only the face-resolution adapter after the biometric model, enrollment flow, threshold calibration, and retention policy are approved.
+A real Supabase persistence adapter now exists, but it only becomes active when a real database-backed resolver provides actual institution/device/student/session UUIDs and the backend runtime has `SUPABASE_URL` + `SUPABASE_SECRET_KEY` configured securely.
 
-The live Supabase schema exists, but the recruiter simulator is still **ephemeral** by design. The server-side Supabase secret key has not been placed in source control, and must never be. The next persistence step is to wire a server-only Supabase adapter using secure deployment/local environment variables.
+Real biometric recognition is also not implemented yet. Demo face results are deterministic fixtures that still pass through the canonical attendance engine.
 
 ---
 
 ## 5. Next implementation slice
 
-Recommended order:
-
-1. Add server-only Supabase configuration/adapter using `SUPABASE_URL` + `SUPABASE_SECRET_KEY` from environment only.
-2. Add demo seed dataset with clearly fictional students and configurable school/session rules.
-3. Implement database-backed RFID resolution.
-4. Implement deterministic active-session + participant eligibility resolver with tests.
-5. Implement idempotent raw-event + verification + canonical attendance persistence.
-6. Make simulator optionally use database-backed mode while preserving an isolated recruiter reset path.
+1. Add a reproducible fictional demo seed dataset.
+2. Implement database-backed RFID lookup/resolution.
+3. Implement active-session resolution from occurrences and participant eligibility.
+4. Add resolver tests for normal arrival, Dhuha targeting, special events, no-session, and non-eligible students.
+5. Register a real simulator device row and switch an isolated database demo mode to real UUID-backed fixtures.
+6. Verify the atomic persistence RPC end-to-end against seeded data, including idempotent replay.
 7. Add Supabase Auth + RBAC for System Admin and Wali Kelas.
-8. Implement school-day pending-confirmation workflow for Sakit/Izin/Alpa.
-9. Build first class attendance/reconciliation view.
-10. Continue toward reporting and real face verification after their pending product decisions are locked.
+8. Implement school-day pending confirmation for Sakit/Izin/Alpa.
+9. Build the first wali-kelas attendance/reconciliation view.
+10. Then continue to reporting and real biometric integration.
 
 ---
 
 ## 6. Still-open product decisions
 
-These do not block the current database foundation but must be decided before the dependent feature is finalized:
-
-- [ ] Final brand/product name and final UI visual system.
-- [ ] Final UI language strategy.
-- [ ] Exact school arrival/late/departure rules.
+- [ ] Final brand/product name and UI visual system.
+- [ ] UI language strategy.
+- [ ] Exact school arrival/late/departure production rules.
 - [ ] Exact Dhuha/Dzuhur/Ashar demo schedules.
 - [ ] Missing-departure policy.
 - [ ] Sakit/Izin impact on prayer/activity denominator.
 - [ ] Evidence attachment requirements.
-- [ ] Attendance manual-correction policy.
+- [ ] Manual-correction policy.
 - [ ] MVP Operator role.
-- [ ] Exact face verification library/model and threshold calibration.
+- [ ] Face verification model and threshold calibration.
 - [ ] Biometric raw-image retention.
 - [ ] Demo isolation/deployment topology.
 - [ ] Report export templates/libraries.
@@ -158,4 +126,4 @@ These do not block the current database foundation but must be decided before th
 
 ## 7. Build guardrail
 
-Do not make a dashboard, simulator, hardware client, or database trigger the independent source of attendance truth. Every accepted/rejected outcome must remain explainable by canonical domain rules, and future real hardware must be able to reach those rules through an adapter without rewriting them.
+Do not make the dashboard, simulator, hardware client, database trigger, or persistence RPC the independent source of attendance truth. Acceptance/rejection remains an application-domain decision. Persistence records that decision safely and future physical hardware must be able to use the same path through an adapter.
