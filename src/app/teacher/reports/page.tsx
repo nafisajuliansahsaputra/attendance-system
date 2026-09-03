@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getClassAttendanceReport } from "../../../infrastructure/reports/supabase-class-report";
+import { getReportingPeriodPresets } from "../../../infrastructure/reports/supabase-report-periods";
 import { requireAuthorizedUser } from "../../../lib/auth/require-authorized-user";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,10 @@ function shiftDate(date: string, days: number) {
   const value = new Date(`${date}T00:00:00.000Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
+}
+
+function earlierDate(first: string, second: string) {
+  return first <= second ? first : second;
 }
 
 function presetHref(classId: string, from: string, to: string) {
@@ -53,26 +58,51 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
   const today = context.schoolDate;
   const monthStart = `${today.slice(0, 7)}-01`;
-  const yearStart = `${today.slice(0, 4)}-01-01`;
   const startDate = isDate(params.from) ? params.from : monthStart;
   const endDate = isDate(params.to) ? params.to : today;
 
-  const report = selectedClass
-    ? await getClassAttendanceReport({
-        actorUserId: userId,
-        classId: selectedClass.id,
-        startDate,
-        endDate,
-      })
-    : null;
+  const [report, reportingPeriods] = await Promise.all([
+    selectedClass
+      ? getClassAttendanceReport({
+          actorUserId: userId,
+          classId: selectedClass.id,
+          startDate,
+          endDate,
+        })
+      : Promise.resolve(null),
+    getReportingPeriodPresets(userId),
+  ]);
 
-  const presets = selectedClass
+  const presets: Array<readonly [string, string, string]> = selectedClass
     ? [
         ["7 hari", shiftDate(today, -6), today],
         ["Bulan ini", monthStart, today],
-        ["Tahun ini", yearStart, today],
-      ] as const
+      ]
     : [];
+
+  if (selectedClass) {
+    reportingPeriods.terms
+      .filter((term) => term.startsOn <= today)
+      .forEach((term) => {
+        presets.push([
+          term.name,
+          term.startsOn,
+          earlierDate(term.endsOn, today),
+        ]);
+      });
+
+    if (
+      reportingPeriods.academicYear &&
+      reportingPeriods.academicYear.startsOn <= today
+    ) {
+      presets.push([
+        `Tahun Ajaran ${reportingPeriods.academicYear.label}`,
+        reportingPeriods.academicYear.startsOn,
+        earlierDate(reportingPeriods.academicYear.endsOn, today),
+      ]);
+    }
+  }
+
   const exportQuery = selectedClass
     ? new URLSearchParams({
         class: selectedClass.id,
@@ -157,7 +187,7 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
           <div className="mt-4 flex flex-wrap gap-2">
             {presets.map(([label, from, to]) => (
               <Link
-                key={label}
+                key={`${label}-${from}-${to}`}
                 href={presetHref(selectedClass.id, from, to)}
                 className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs transition hover:bg-[var(--surface-soft)]"
               >
