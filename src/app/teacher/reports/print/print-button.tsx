@@ -7,7 +7,7 @@ export function PrintReportButton() {
       onClick={() => window.print()}
       className="rounded-xl bg-black px-5 py-3 text-sm font-semibold text-white"
     >
-      Print / Save as PDF
+      Cetak / Simpan sebagai PDF
     </button>
   );
 }
