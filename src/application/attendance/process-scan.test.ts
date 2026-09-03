@@ -139,4 +139,42 @@ describe("processAttendanceScan", () => {
     expect(result.outcome.recordAttendance).toBe(false);
     expect(persistence.persist).toHaveBeenCalledTimes(1);
   });
+
+  it("records NOT_REQUIRED instead of faking a face match for no-face sessions", async () => {
+    const context: AttendanceResolvedContext = {
+      ...baseContext,
+      faceProfile: undefined,
+      sessions: [
+        {
+          ...baseContext.sessions[0],
+          faceVerificationRequired: false,
+        },
+      ],
+    };
+    const resolve = vi.fn().mockResolvedValue(context);
+    const verify = vi.fn();
+    const persistence = databasePersistenceMock();
+
+    const result = await processAttendanceScan(
+      {
+        requestId: "scan-no-face-required",
+        institutionId: context.institutionId,
+        deviceId: context.deviceId,
+        rfidUid: context.card.uid,
+        occurredAt: "2026-09-02T23:45:00.000Z",
+      },
+      {
+        contextResolver: { resolve },
+        faceVerifier: { verify },
+        persistence,
+      },
+    );
+
+    expect(verify).not.toHaveBeenCalled();
+    expect(result.outcome.accepted).toBe(true);
+    expect(persistence.persist).toHaveBeenCalledWith(
+      expect.objectContaining({ face: { status: "not_required" } }),
+      expect.objectContaining({ code: "ACCEPTED_ON_TIME" }),
+    );
+  });
 });
