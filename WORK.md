@@ -1,8 +1,8 @@
 # Current Work State
 
 **Last updated:** 2026-09-03  
-**Current phase:** Database-backed attendance resolution / Phase 2  
-**Coding status:** Active; seed, context resolution, persistence, and CI verified
+**Current phase:** Database-backed attendance orchestration / Phase 2  
+**Coding status:** Active; seed, context resolution, face boundary, canonical decision, persistence, and CI verified
 
 This file is the handoff point for the next working session. Read it after `AGENTS.md` and `docs/00-SOURCE-OF-TRUTH.md`.
 
@@ -45,7 +45,10 @@ This file is the handoff point for the next working session. Read it after `AGEN
 - [x] Supabase RFID/student/session/eligibility context adapter.
 - [x] Context-to-canonical-attempt mapper.
 - [x] Fail-closed multiple-session selection guard.
-- [x] Context/persistence mapping tests.
+- [x] Replaceable `FaceVerifier` boundary.
+- [x] Deterministic demo face-verifier adapter for future sandbox use.
+- [x] Raw scan orchestration service: resolve → face verify → canonical engine → persist.
+- [x] Orchestration tests verify accepted scan, unknown RFID short-circuit, and face mismatch audit persistence.
 - [x] Latest CI passes install, lint, typecheck, unit tests, and production build.
 
 ---
@@ -116,7 +119,7 @@ Verified seed cases:
 
 ## 4. Reproducible fictional demo seed
 
-`supabase/seed.sql` now contains synthetic portfolio data only:
+`supabase/seed.sql` contains synthetic portfolio data only:
 
 - fictional institution `SMK Cakrawala Digital (Fiktif)`;
 - academic year 2026/2027;
@@ -144,25 +147,25 @@ The schedule values are explicitly fixture data, not claims about a real school.
 
 ## 5. Important truth about current runtime
 
-The public recruiter terminal still uses the **ephemeral adapter by default**. This is intentional.
+The public recruiter terminal still uses the **ephemeral adapter by default**. This remains intentional.
 
-The real database resolver and persistence adapter exist, but public DB-mode is not enabled yet because recruiter clicks would otherwise mutate canonical demo attendance and quickly turn successful scenarios into duplicates. Demo isolation/reset semantics must be designed first.
+The real database resolver, raw-scan orchestration service, face-verifier boundary, and Supabase persistence adapter now exist. Public DB-mode is still disabled because recruiter clicks would mutate canonical demo attendance and concurrent visitors could interfere with each other. A public portfolio demo should remain ephemeral unless per-run isolation is added.
 
-Real biometric recognition is also not implemented yet. Demo face results remain deterministic fixtures, while database face-profile rows contain only synthetic references.
+Real biometric recognition is not implemented yet. Demo face results remain deterministic fixtures, while database face-profile rows contain only synthetic references.
 
 ---
 
 ## 6. Next implementation slice
 
-1. Define demo-vs-production data isolation/reset strategy.
-2. Build a raw scan orchestration service: device/RFID context → face verifier boundary → canonical engine → persistence.
-3. Add a deterministic face-verifier adapter for the database-backed sandbox only.
-4. Add an isolated DB-backed simulator path without exposing the Supabase secret or mutating production-like data indefinitely.
-5. Add Supabase Auth + RBAC for System Admin and Wali Kelas.
-6. Implement school-day pending confirmation for Sakit/Izin/Alpa.
-7. Build the first wali-kelas attendance/reconciliation view.
-8. Add schedule-occurrence materialization from configured rules rather than relying only on pre-seeded occurrences.
-9. Continue to reports/exports.
+1. Start Supabase Auth + RBAC for System Admin and Wali Kelas.
+2. Define server session/auth helpers for Next.js without exposing privileged keys.
+3. Add RLS/policies only after role ownership predicates are explicit; do not grant broad `authenticated` access.
+4. Implement school-day pending confirmation for Sakit/Izin/Alpa.
+5. Build the first wali-kelas attendance/reconciliation view.
+6. Add schedule-occurrence materialization from configured rules rather than relying only on seeded occurrences.
+7. Keep the recruiter terminal ephemeral; add a DB-backed sandbox only if per-run or developer-only isolation is implemented.
+8. Continue to reports/exports.
+9. Add versioned device authentication before exposing a real hardware endpoint.
 10. Continue to real biometric integration only after model/threshold/retention decisions are locked.
 
 ---
@@ -180,7 +183,7 @@ Real biometric recognition is also not implemented yet. Demo face results remain
 - [ ] MVP Operator role.
 - [ ] Face verification model and threshold calibration.
 - [ ] Biometric raw-image retention.
-- [ ] Demo isolation/deployment topology.
+- [ ] Database-backed sandbox isolation details.
 - [ ] Report export templates/libraries.
 - [ ] Final overlapping-session priority/device routing policy.
 
@@ -188,4 +191,4 @@ Real biometric recognition is also not implemented yet. Demo face results remain
 
 ## 8. Build guardrail
 
-Do not make the dashboard, simulator, hardware client, database trigger, resolver RPC, or persistence RPC the independent source of attendance truth. Resolution gathers trusted context; the application-domain engine decides acceptance/rejection; persistence records that decision safely. Future physical hardware must use the same path through an adapter.
+Do not make the dashboard, simulator, hardware client, database trigger, resolver RPC, or persistence RPC the independent source of attendance truth. Resolution gathers trusted context; the application-domain engine decides acceptance/rejection; persistence records that decision safely. Future physical hardware must use the same path through an authenticated adapter.
