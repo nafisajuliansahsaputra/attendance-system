@@ -17,6 +17,10 @@ const authorizationContextSchema = z.object({
   ),
 });
 
+export function parseAuthorizationContext(raw: unknown): AuthorizationContext {
+  return authorizationContextSchema.parse(raw);
+}
+
 export async function getAuthorizationContext(
   userId: string,
   schoolDate?: string,
@@ -33,5 +37,5 @@ export async function getAuthorizationContext(
     return null;
   }
 
-  return authorizationContextSchema.parse(raw);
+  return parseAuthorizationContext(raw);
 }
