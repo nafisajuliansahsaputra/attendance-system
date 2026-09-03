@@ -31,6 +31,7 @@ const arrivalSession = {
 export function buildDemoAttempt(scenario: DemoScenario, requestId: string): ResolvedAttendanceAttempt {
   const base: ResolvedAttendanceAttempt = {
     requestId,
+    institutionId: "institution-demo-001",
     deviceId: "simulator-terminal-01",
     occurredAt: "2026-09-02T23:50:00.000Z",
     card: {
