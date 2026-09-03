@@ -1,8 +1,8 @@
 # Current Work State
 
 **Last updated:** 2026-09-03  
-**Current phase:** Schedule + Device API v1 + reporting exports / Phase 4  
-**Coding status:** Active; core attendance, RBAC, homeroom reconciliation, derived reporting, schedule materialization, protected device stage 1, and usable report exports implemented
+**Current phase:** Schedule + Device API v1 + reporting + admin identity management / Phase 4  
+**Coding status:** Active; core attendance, RBAC, homeroom reconciliation, derived reporting, exports, academic presets, schedule materialization, protected device stage 1, and admin student/RFID management implemented
 
 This file is the handoff point for the next working session. Read it after `AGENTS.md` and `docs/00-SOURCE-OF-TRUTH.md`.
 
@@ -24,6 +24,7 @@ This file is the handoff point for the next working session. Read it after `AGEN
 - Device clients never declare authoritative student/class/session truth; those are resolved server-side.
 - Device credentials are independent from human staff credentials.
 - Schedule occurrences must be materialized from configuration so a day with zero scans can still become a required attendance day.
+- Admin credential replacement must preserve historical credential/audit data rather than deleting prior identity records.
 
 ---
 
@@ -60,22 +61,25 @@ Implemented:
 - [x] Supabase browser Auth client using publishable key only.
 - [x] Supabase server Auth client using cookies.
 - [x] Next.js `proxy.ts` session refresh for protected staff routes.
-- [x] `/dashboard`, `/teacher`, `/admin` protected; `/terminal` remains public.
+- [x] `/dashboard` and nested admin tools protected; `/teacher` protected; `/terminal` remains public.
 - [x] Server guard uses verified Auth `sub` only as identity bridge.
 - [x] Roles/classes resolved from canonical application database, not user metadata.
 - [x] Internal email/password login, sign-out, unauthorized/profile-missing states.
 - [x] SYSTEM_ADMIN/OPERATOR dashboard shell.
 - [x] Authorization context validation tests, including rejection of unknown roles.
 
-Database authorization RPCs include:
+Privileged server-only RPCs now include:
 
 - `get_user_authorization_context`
 - `get_homeroom_attendance_snapshot`
 - `confirm_school_day_status`
 - `provision_staff_profile`
 - `get_class_attendance_report`
+- `get_reporting_period_presets`
+- `get_admin_student_directory`
+- `assign_student_rfid`
 
-Privileged RPCs remain service-role-only unless explicitly designed otherwise.
+`anon` and `authenticated` do not receive direct execute permission for these privileged application RPCs.
 
 ---
 
@@ -195,7 +199,7 @@ The device does not submit authoritative institution/student/class/session IDs f
 
 ## 8. Verification transaction boundary completed
 
-New canonical table: `device_verification_transactions`.
+Canonical table: `device_verification_transactions`.
 
 Purpose:
 
@@ -225,8 +229,6 @@ Properties:
 - returns per-student and class totals for required/present/late/sakit/izin/alpa/pending;
 - separately returns raw session participation by type.
 
-Important policy separation:
-
 Prayer/activity participation remains raw. No Dhuha/Dzuhur/Ashar percentage is generated until the Sakit/Izin denominator policy is locked.
 
 UI:
@@ -234,10 +236,19 @@ UI:
 - `/teacher/reports`
 - authorized class selector;
 - custom date range;
-- presets: 7 days, current month, current calendar year;
+- presets derived from canonical school data: 7 days, current month, started semester(s), active academic year;
+- future terms are hidden and current semester/academic-year ranges are clipped to the current school date so future required days are never counted as pending;
 - class summary cards;
 - per-student table;
 - raw session participation cards.
+
+Live reporting-period data currently resolves:
+
+- Academic Year: `2026/2027` (`2026-07-01` → `2027-06-30`)
+- Semester Ganjil: `2026-07-01` → `2026-12-31`
+- Semester Genap: `2027-01-01` → `2027-06-30`
+
+These are fictional portfolio fixtures and are not claims about a real school schedule.
 
 ---
 
@@ -273,11 +284,46 @@ Behavior:
 - formal summary, per-student table, session participation, and policy notes;
 - browser Print dialog can print physically or Save as PDF.
 
-A native binary `.xlsx` or direct server-generated PDF can be added later if a final library/template requirement justifies another dependency. The current implementation already gives staff usable Excel/PDF workflows without weakening the data model.
+A native binary `.xlsx` or direct server-generated PDF can be added later if a final library/template requirement justifies another dependency.
 
 ---
 
-## 11. Supabase live state
+## 11. Admin student + RFID workspace completed
+
+Protected page:
+
+- `/dashboard/students`
+
+Scope:
+
+- SYSTEM_ADMIN only;
+- search by student name, NIS, or active RFID UID;
+- filter by active class;
+- show active enrollment/class;
+- show active RFID UID;
+- show active face-profile status/model metadata without exposing the biometric template/reference;
+- assign a first RFID card;
+- replace an active RFID card;
+- preserve the old credential as `REPLACED` rather than deleting it;
+- optional replacement note;
+- write an audit log for a new RFID assignment.
+
+Database invariant added:
+
+- maximum one `ACTIVE` RFID credential per student;
+- active UID remains unique within the institution.
+
+Assignment behavior:
+
+- assigning the same already-active UID to the same student is idempotent/unchanged;
+- assigning an active UID that belongs to another student fails with `RFID_UID_IN_USE`;
+- replacing a card revokes the previous active credential into `REPLACED` state before inserting the new active credential.
+
+Face-profile writes are intentionally not exposed here yet because Stage 2 biometric enrollment/verification policy is still open.
+
+---
+
+## 12. Supabase live state
 
 Dedicated project status: **ACTIVE_HEALTHY**.
 
@@ -297,18 +343,21 @@ Live migration history:
 10. `device_authentication_and_stage_one`
 11. `harden_schedule_recurrence_parser`
 12. `index_device_verification_foreign_keys`
+13. `reporting_period_presets`
+14. `admin_student_directory_and_rfid`
 
 Security posture:
 
 - `anon` → no direct privileged RPC/table access;
 - `authenticated` → no direct privileged RPC/table access;
 - server/service role → privileged execution through controlled application paths;
-- RLS `enabled no policy` advisor items are currently intentional default-deny behavior;
-- new verification-transaction foreign keys have covering indexes.
+- `get_reporting_period_presets`, `get_admin_student_directory`, and `assign_student_rfid` are verified service-role-only;
+- RLS `enabled no policy` advisor items remain intentional default-deny behavior;
+- verification-transaction foreign keys have covering indexes.
 
 ---
 
-## 12. Reproducible fictional seed
+## 13. Reproducible fictional seed
 
 `supabase/seed.sql` contains synthetic portfolio data only:
 
@@ -326,29 +375,46 @@ No real school/student biometric data is present.
 
 ---
 
-## 13. Verification gates
+## 14. Verification gates
 
-Recent completed implementation gates include:
+Recent implementation chain is green through GitHub CI:
 
-- successful Supabase migrations;
-- schedule parser/materialization SQL checks;
-- participant snapshot checks;
-- device privilege checks;
-- security/performance advisor review;
-- unit coverage for attendance engine, orchestration, persistence mapping, device stage resolution, timestamp guard, and CSV export safety;
-- GitHub CI: install, lint, typecheck, unit tests, production build.
+- dependency install ✅
+- lint ✅
+- TypeScript typecheck ✅
+- unit tests ✅
+- production build ✅
 
-After any code change, the latest `main` CI must be green before declaring that slice complete.
+Current regression coverage includes:
+
+- attendance decision engine;
+- orchestration/persistence mapping;
+- device stage resolution + timestamp guard;
+- schedule/report parser boundaries;
+- academic report preset future-date clipping;
+- CSV formula-injection protection;
+- admin student directory payload parsing.
+
+Database checks completed for:
+
+- schedule materialization behavior;
+- participant snapshots;
+- reporting-period data;
+- device/RPC privileges;
+- single-active-RFID-per-student index;
+- service-role-only admin/report RPC execution.
+
+After any new code change, the latest `main` CI must be green before declaring that slice complete.
 
 ---
 
-## 14. Next implementation slice
+## 15. Next implementation slice
 
 Recommended order from the current state:
 
-1. Finish verification gate for current report-export changes.
-2. Add academic semester + active academic-year report presets using canonical academic-year/term dates rather than calendar-year assumptions.
-3. Add admin UI for students, classes, RFID assignment, schedules, devices, and staff provisioning.
+1. Expand admin management from students/RFID to classes/enrollments and schedule configuration.
+2. Add device registry/monitoring UI (status, type, protocol version, last seen, credential rotation workflow) with final Operator permissions decided first.
+3. Add protected in-app staff provisioning UI on top of the existing secure provisioning backend.
 4. Design the Stage 2 face verification contract in detail: face sample upload/reference, quality failure, liveness policy, model/version, calibrated threshold, transaction consumption, replay behavior.
 5. Choose and implement the actual face engine only after the Stage 2/biometric policy is locked.
 6. Build a local Arduino/USB serial bridge adapter against Device API v1 when hardware integration work begins.
@@ -358,7 +424,7 @@ Recommended order from the current state:
 
 ---
 
-## 15. Still-open product decisions
+## 16. Still-open product decisions
 
 - [ ] Final brand/product name and UI visual system.
 - [ ] UI language strategy.
@@ -379,7 +445,7 @@ Recommended order from the current state:
 
 ---
 
-## 16. Build guardrail
+## 17. Build guardrail
 
 Keep these authorities separate:
 
@@ -389,6 +455,7 @@ Keep these authorities separate:
 - schedule rules → attendance obligation generation;
 - participant snapshot → occurrence eligibility truth;
 - RFID + face + session engine → attendance truth;
+- admin credential management → student identity credentials, never attendance truth;
 - homeroom confirmation → reason for a missing required school arrival;
 - canonical records + confirmations → reports;
 - export views → presentation only, never a new source of attendance truth.
