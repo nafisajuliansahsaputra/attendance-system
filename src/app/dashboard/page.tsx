@@ -47,7 +47,7 @@ export default async function DashboardPage() {
         </article>
       </section>
 
-      <section className="mt-6 grid gap-4 lg:grid-cols-2">
+      <section className="mt-6 grid gap-4 lg:grid-cols-3">
         <Link
           href="/terminal"
           className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6 transition hover:border-[var(--success)]"
@@ -62,20 +62,35 @@ export default async function DashboardPage() {
         </Link>
 
         {context.role === "SYSTEM_ADMIN" ? (
-          <Link
-            href="/teacher"
-            className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6 transition hover:border-[var(--success)]"
-          >
-            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--success)]">
-              Homeroom
-            </p>
-            <h2 className="mt-3 text-xl font-semibold">Tinjau workspace wali kelas</h2>
-            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-              Administrator dapat membuka kelas untuk audit dan rekonsiliasi.
-            </p>
-          </Link>
+          <>
+            <Link
+              href="/dashboard/students"
+              className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6 transition hover:border-[var(--success)]"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--success)]">
+                Student identity
+              </p>
+              <h2 className="mt-3 text-xl font-semibold">Kelola siswa & RFID</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Cari siswa, cek kelas dan face profile, lalu assign atau replace kartu RFID dengan audit history.
+              </p>
+            </Link>
+
+            <Link
+              href="/teacher"
+              className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6 transition hover:border-[var(--success)]"
+            >
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--success)]">
+                Homeroom
+              </p>
+              <h2 className="mt-3 text-xl font-semibold">Tinjau workspace wali kelas</h2>
+              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
+                Administrator dapat membuka kelas untuk audit, konfirmasi ketidakhadiran, dan rekap.
+              </p>
+            </Link>
+          </>
         ) : (
-          <article className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6">
+          <article className="rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-6 lg:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
               Operator
             </p>
