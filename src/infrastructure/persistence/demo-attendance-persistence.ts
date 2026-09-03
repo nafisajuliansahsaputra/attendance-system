@@ -2,10 +2,6 @@ import type {
   AttendanceAttemptPersistence,
   PersistAttendanceResult,
 } from "@/application/attendance/persistence";
-import type {
-  AttendanceOutcome,
-  ResolvedAttendanceAttempt,
-} from "@/domain/attendance/types";
 
 /**
  * Recruiter/demo adapter used until the server-side Supabase secret is wired.
@@ -14,10 +10,7 @@ import type {
  * application service will later receive a Supabase implementation instead.
  */
 export class DemoAttendancePersistence implements AttendanceAttemptPersistence {
-  async persist(
-    _attempt: ResolvedAttendanceAttempt,
-    _outcome: AttendanceOutcome,
-  ): Promise<PersistAttendanceResult> {
+  async persist(): Promise<PersistAttendanceResult> {
     return {
       mode: "ephemeral",
     };
