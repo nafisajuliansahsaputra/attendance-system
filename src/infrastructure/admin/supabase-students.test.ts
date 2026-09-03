@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseAdminStudentDirectory } from "./supabase-students";
+import {
+  parseAdminStudentDirectory,
+  parseTransferStudentEnrollmentResult,
+} from "./supabase-students";
 
-describe("parseAdminStudentDirectory", () => {
+describe("admin student persistence contracts", () => {
   it("accepts a student with active class, RFID, and face status", () => {
     expect(
       parseAdminStudentDirectory([
@@ -42,6 +45,26 @@ describe("parseAdminStudentDirectory", () => {
       nis: "1002",
       fullName: "Bima Mahendra",
       active: true,
+    });
+  });
+
+  it("maps a class transfer result and removes a null previous enrollment id", () => {
+    expect(
+      parseTransferStudentEnrollmentResult({
+        studentId: "22222222-2222-4222-8222-222222222002",
+        enrollmentId: "33333333-3333-4333-8333-333333333099",
+        classId: "44444444-4444-4444-8444-444444444002",
+        effectiveOn: "2026-09-04",
+        unchanged: false,
+        previousEnrollmentId: null,
+      }),
+    ).toEqual({
+      studentId: "22222222-2222-4222-8222-222222222002",
+      enrollmentId: "33333333-3333-4333-8333-333333333099",
+      classId: "44444444-4444-4444-8444-444444444002",
+      effectiveOn: "2026-09-04",
+      unchanged: false,
+      previousEnrollmentId: undefined,
     });
   });
 });
