@@ -85,7 +85,7 @@ export default async function StudentAdminPage({
             Siswa & identitas terminal
           </h1>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-            Kelola kelas aktif dan kartu RFID tanpa menghapus histori. Perpindahan kelas membuat enrollment baru dengan tanggal efektif, sementara kartu lama disimpan sebagai credential REPLACED.
+            Kelola kelas aktif, RFID, dan face profile tanpa menghapus histori. Perpindahan kelas membuat enrollment baru dengan tanggal efektif, sementara credential dan biometric profile lama tetap auditable.
           </p>
         </div>
       </header>
@@ -153,7 +153,7 @@ export default async function StudentAdminPage({
             </p>
           </div>
           <p className="text-xs leading-5 text-[var(--muted)]">
-            Face enrollment write belum dibuka sampai Stage 2 biometric contract dikunci.
+            Face enrollment aktif dengan local SFace inference; liveness/anti-spoof belum diimplementasikan.
           </p>
         </div>
 
@@ -250,6 +250,12 @@ export default async function StudentAdminPage({
                       ) : (
                         <p className="text-[var(--warning)]">Belum enroll</p>
                       )}
+                      <Link
+                        href={`/dashboard/students/${student.studentId}/face`}
+                        className="mt-3 inline-flex rounded-lg border border-[var(--border)] px-3 py-2 text-xs font-semibold transition hover:bg-[var(--surface-soft)]"
+                      >
+                        {student.faceProfileId ? "Enroll ulang wajah" : "Enroll wajah"}
+                      </Link>
                     </td>
                     <td className="px-5 py-5">
                       <form action={assignStudentRfidAction} className="grid min-w-[330px] gap-2">
