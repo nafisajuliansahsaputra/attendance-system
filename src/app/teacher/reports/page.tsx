@@ -73,6 +73,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
         ["Tahun ini", yearStart, today],
       ] as const
     : [];
+  const exportQuery = selectedClass
+    ? new URLSearchParams({
+        class: selectedClass.id,
+        from: startDate,
+        to: endDate,
+      }).toString()
+    : "";
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-5 py-7 sm:px-8 sm:py-10">
@@ -163,6 +170,32 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
       {report ? (
         <>
+          <section className="mt-6 flex flex-col gap-4 rounded-[1.75rem] border border-[var(--border)] bg-[var(--surface)] p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+            <div>
+              <h2 className="text-lg font-semibold">Export rekap</h2>
+              <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--muted)]">
+                CSV menggunakan format UTF-8 yang ramah Excel. Tampilan print dapat langsung disimpan sebagai PDF dari dialog print browser.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link
+                href={`/api/reports/class/csv?${exportQuery}`}
+                prefetch={false}
+                className="rounded-xl border border-[var(--border)] px-4 py-3 text-sm font-semibold transition hover:bg-[var(--surface-soft)]"
+              >
+                Download CSV
+              </Link>
+              <Link
+                href={`/teacher/reports/print?${exportQuery}`}
+                target="_blank"
+                rel="noreferrer"
+                className="rounded-xl bg-[var(--success)] px-4 py-3 text-sm font-semibold text-[#07100d]"
+              >
+                Print / Save PDF
+              </Link>
+            </div>
+          </section>
+
           <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {[
               ["Siswa", report.totals.students],
