@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDemoAttempt } from "@/demo/scenarios";
+import { buildDemoAttempt } from "../../demo/scenarios";
 import { evaluateAttendanceAttempt } from "./engine";
 
 const id = "test-request";

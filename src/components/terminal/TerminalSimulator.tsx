@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { DemoScenario } from "@/demo/scenarios";
 import type { AttendanceOutcome } from "@/domain/attendance/types";
@@ -17,8 +18,7 @@ const scenarioOptions: Array<{ id: DemoScenario; label: string; description: str
 async function playBeepPattern(outcome: AttendanceOutcome) {
   if (typeof window === "undefined") return;
 
-  const AudioContextClass = window.AudioContext;
-  const context = new AudioContextClass();
+  const context = new AudioContext();
   const { count, durationMs, intervalMs } = outcome.feedback.beep;
 
   for (let index = 0; index < count; index += 1) {
@@ -188,9 +188,9 @@ export function TerminalSimulator() {
             {loading ? "Memproses..." : "Simulasikan RFID Scan"}
           </button>
 
-          <a href="/" className="mt-3 block text-center text-xs text-[var(--muted)] hover:text-white">
+          <Link href="/" className="mt-3 block text-center text-xs text-[var(--muted)] hover:text-white">
             ← Kembali ke project overview
-          </a>
+          </Link>
         </aside>
       </div>
     </main>

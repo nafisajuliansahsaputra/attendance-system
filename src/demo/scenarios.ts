@@ -1,4 +1,4 @@
-import type { ResolvedAttendanceAttempt } from "@/domain/attendance/types";
+import type { ResolvedAttendanceAttempt } from "../domain/attendance/types";
 
 export const demoScenarios = [
   "verified",
