@@ -2,6 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  SCHOOL,
+  attendanceOutcomeLabel,
+  faceStatusLabel,
+} from "@/config/school";
 import type { AttendanceOutcome } from "@/domain/attendance/types";
 
 type LiveEnrollResponse = {
@@ -84,17 +89,17 @@ function errorMessage(payload: { code?: string; reason?: string }) {
     case "FACE_NOT_DETECTED":
       return "Wajah belum terdeteksi. Hadap lurus ke kamera dan coba lagi.";
     case "FACE_LOW_QUALITY":
-      return `Frame wajah terlalu buram atau pencahayaan kurang${payload.reason ? ` (${payload.reason})` : ""}.`;
+      return `Kualitas gambar wajah belum mencukupi${payload.reason ? ` (${payload.reason})` : ""}. Perbaiki pencahayaan dan pastikan kamera fokus.`;
     case "MULTIPLE_FACES":
-      return "Pastikan hanya satu wajah berada di depan kamera saat proses berlangsung.";
+      return "Terdeteksi lebih dari satu wajah. Pastikan hanya satu orang berada di depan kamera.";
     case "LIVE_FACE_DEMO_EXPIRED":
-      return "Template demo sudah kedaluwarsa. Daftarkan wajah lagi.";
+      return "Data wajah sementara sudah kedaluwarsa. Silakan daftarkan wajah kembali.";
     case "FACE_SERVICE_UNAVAILABLE":
-      return "Face service tidak dapat dijangkau. Pastikan face-service aktif.";
+      return "Layanan verifikasi wajah tidak dapat dihubungi. Pastikan layanan kamera dan pengenal wajah sedang aktif.";
     case "INVALID_FACE_SAMPLE":
-      return "Frame kamera tidak dapat diproses. Coba ambil ulang.";
+      return "Gambar dari kamera tidak dapat diproses. Silakan coba ambil gambar kembali.";
     default:
-      return payload.reason || "Live face demo belum berhasil. Coba lagi.";
+      return payload.reason || "Pengujian verifikasi wajah belum berhasil. Silakan coba lagi.";
   }
 }
 
@@ -104,7 +109,11 @@ function formatPercent(value?: number | null) {
 }
 
 function formatTime(value: string) {
-  return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  return new Date(value).toLocaleTimeString("id-ID", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 }
 
 export function LiveRecruiterTerminal() {
@@ -112,7 +121,7 @@ export function LiveRecruiterTerminal() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  const [displayName, setDisplayName] = useState("Recruiter Demo");
+  const [displayName, setDisplayName] = useState("Pengunjung");
   const [cameraReady, setCameraReady] = useState(false);
   const [stage, setStage] = useState<FlowStage>("ready");
   const [demoFaceToken, setDemoFaceToken] = useState<string | null>(null);
@@ -128,10 +137,10 @@ export function LiveRecruiterTerminal() {
   const mismatchSeen = history.some((item) => item.code === "FACE_MISMATCH");
 
   const challengeLabel = useMemo(() => {
-    if (!demoFaceToken) return "Enroll the card owner";
-    if (!ownerPassed) return "Verify the same person";
-    if (!mismatchSeen) return "Invite a friend to challenge it";
-    return "Demo challenge completed";
+    if (!demoFaceToken) return "Daftarkan wajah pemilik kartu";
+    if (!ownerPassed) return "Uji menggunakan wajah yang sama";
+    if (!mismatchSeen) return "Sekarang coba menggunakan wajah orang lain";
+    return "Pengujian pemilik dan wajah berbeda sudah selesai";
   }, [demoFaceToken, mismatchSeen, ownerPassed]);
 
   function stopCamera() {
@@ -164,7 +173,7 @@ export function LiveRecruiterTerminal() {
         setCameraReady(true);
       }
     } catch {
-      setMessage("Kamera tidak dapat dibuka. Izinkan akses kamera dan gunakan HTTPS atau localhost.");
+      setMessage("Kamera tidak dapat dibuka. Berikan izin akses kamera pada browser lalu coba kembali.");
     }
   }
 
@@ -188,7 +197,7 @@ export function LiveRecruiterTerminal() {
   async function enrollLiveFace() {
     const imageBase64 = captureJpeg();
     if (!imageBase64) {
-      setMessage("Kamera belum siap mengambil frame.");
+      setMessage("Kamera belum siap mengambil gambar. Tunggu sebentar lalu coba lagi.");
       return;
     }
 
@@ -201,7 +210,7 @@ export function LiveRecruiterTerminal() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName: displayName.trim() || "Recruiter Demo",
+          displayName: displayName.trim() || "Pengunjung",
           imageBase64,
         }),
         cache: "no-store",
@@ -219,22 +228,22 @@ export function LiveRecruiterTerminal() {
       setEnrollQuality(payload.qualityScore ?? null);
       setHistory([]);
       setStage("enrolled");
-      setMessage("Kartu demo siap. Sekarang verifikasi wajah pemilik kartu yang sama.");
+      setMessage("Wajah pemilik kartu berhasil didaftarkan. Sekarang lakukan verifikasi menggunakan wajah orang yang sama.");
     } catch {
       setStage("ready");
-      setMessage("Gagal menghubungi endpoint live enrollment.");
+      setMessage("Sistem tidak dapat menghubungi layanan pendaftaran wajah sementara.");
     }
   }
 
   async function verifyCurrentFace() {
     if (!demoFaceToken) {
-      setMessage("Daftarkan wajah pemilik kartu demo terlebih dahulu.");
+      setMessage("Daftarkan wajah pemilik kartu terlebih dahulu.");
       return;
     }
 
     const imageBase64 = captureJpeg();
     if (!imageBase64) {
-      setMessage("Kamera belum siap mengambil frame.");
+      setMessage("Kamera belum siap mengambil gambar. Tunggu sebentar lalu coba lagi.");
       return;
     }
 
@@ -283,7 +292,7 @@ export function LiveRecruiterTerminal() {
       await playBeepPattern(payload.outcome);
     } catch {
       setStage("enrolled");
-      setMessage("Gagal menghubungi endpoint live verification.");
+      setMessage("Sistem tidak dapat menghubungi layanan verifikasi wajah.");
     }
   }
 
@@ -304,10 +313,12 @@ export function LiveRecruiterTerminal() {
       <div className="mx-auto w-full max-w-[1480px]">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white/90 px-5 py-4 shadow-sm backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-10 w-10 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">SA</span>
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">
+              A12
+            </span>
             <div>
-              <p className="text-sm font-semibold">Live Recruiter Demo</p>
-              <p className="text-xs text-[var(--muted)]">Real camera · YuNet + SFace · canonical engine</p>
+              <p className="text-sm font-semibold">{SCHOOL.name}</p>
+              <p className="text-xs text-[var(--muted)]">Terminal Uji Absensi Siswa</p>
             </div>
           </div>
 
@@ -316,22 +327,37 @@ export function LiveRecruiterTerminal() {
               href="/terminal/lab"
               className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-xs font-semibold transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
             >
-              Virtual hardware lab
+              Simulasi perangkat
             </Link>
             <Link
               href="/"
               className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-xs font-semibold transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
             >
-              ← Project overview
+              ← Halaman utama
             </Link>
           </div>
         </header>
 
         <div className="mb-5 grid gap-3 md:grid-cols-3">
           {[
-            { label: "01 · Enroll owner", done: Boolean(demoFaceToken), active: !demoFaceToken, text: "Create a temporary RFID identity" },
-            { label: "02 · Verify owner", done: ownerPassed, active: Boolean(demoFaceToken) && !ownerPassed, text: "Same face should be accepted" },
-            { label: "03 · Challenge", done: mismatchSeen, active: ownerPassed && !mismatchSeen, text: "A different face should be rejected" },
+            {
+              label: "01 · Daftarkan pemilik kartu",
+              done: Boolean(demoFaceToken),
+              active: !demoFaceToken,
+              text: "Ambil satu gambar wajah untuk membuat identitas RFID sementara.",
+            },
+            {
+              label: "02 · Verifikasi pemilik",
+              done: ownerPassed,
+              active: Boolean(demoFaceToken) && !ownerPassed,
+              text: "Wajah orang yang sama seharusnya diterima oleh sistem.",
+            },
+            {
+              label: "03 · Uji wajah berbeda",
+              done: mismatchSeen,
+              active: ownerPassed && !mismatchSeen,
+              text: "Minta orang lain berdiri di depan kamera. Sistem seharusnya menolak.",
+            },
           ].map((item) => (
             <div
               key={item.label}
@@ -344,7 +370,7 @@ export function LiveRecruiterTerminal() {
               }`}
             >
               <div className="flex items-center justify-between gap-3">
-                <p className={`text-xs font-bold uppercase tracking-[0.12em] ${item.done ? "text-emerald-700" : "text-[var(--muted)]"}`}>
+                <p className={`text-xs font-bold uppercase tracking-[0.08em] ${item.done ? "text-emerald-700" : "text-[var(--muted)]"}`}>
                   {item.label}
                 </p>
                 <span className={`grid h-6 w-6 place-items-center rounded-full text-xs font-bold ${item.done ? "bg-emerald-500 text-white" : item.active ? "bg-[var(--success-soft)] text-[var(--success)]" : "bg-slate-100 text-slate-400"}`}>
@@ -360,121 +386,145 @@ export function LiveRecruiterTerminal() {
           <section className="overflow-hidden rounded-[2rem] border border-[var(--border)] bg-white shadow-xl shadow-emerald-950/5">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--border)] px-6 py-5 sm:px-8">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--success)]">Terminal 01 · Live face adapter</p>
-                <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">Test the anti-proxy attendance flow yourself</h1>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--success)]">
+                  Terminal Absensi 01 · Mode Pengujian
+                </p>
+                <h1 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">
+                  Uji sendiri pencegahan titip absen
+                </h1>
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--muted)]">
-                  Recruiter hanya memberi input wajah. MATCH atau MISMATCH diputuskan model, bukan tombol skenario.
+                  Pengguna hanya memberikan kartu dan wajah. Sistem yang menentukan apakah wajah sesuai dengan pemilik kartu.
                 </p>
               </div>
 
               <div className="flex items-center gap-2 rounded-full border border-[var(--border)] bg-[var(--surface-soft)] px-3 py-2 text-xs font-semibold text-[var(--muted)]">
                 <span className={`h-2 w-2 rounded-full ${cameraReady ? "bg-emerald-500" : "bg-slate-300"}`} />
-                {cameraReady ? "Camera online" : "Camera offline"}
+                {cameraReady ? "Kamera aktif" : "Kamera tidak aktif"}
               </div>
             </header>
 
-            <div className="grid min-h-[710px] lg:grid-cols-[minmax(0,1fr)_320px]">
-              <div className="flex flex-col items-center justify-center border-b border-[var(--border)] px-5 py-8 text-center lg:border-b-0 lg:border-r sm:px-8">
-                <div className="mb-5 flex items-center gap-3 rounded-full border border-[var(--border)] bg-[var(--surface-soft)] px-4 py-2 text-xs font-semibold text-[var(--muted)]">
-                  <span className={`h-3 w-3 rounded-full transition-all ${ledClass(outcome?.feedback.led ?? "off")}`} />
-                  Terminal feedback LED
-                </div>
+            <div className="grid min-h-[720px] lg:grid-cols-[minmax(0,1fr)_320px]">
+              <div className="flex flex-col items-center justify-center border-b border-[var(--border)] px-6 py-9 text-center lg:border-b-0 lg:border-r sm:px-10">
+                <div className={`mb-6 h-5 w-5 rounded-full transition-all duration-300 ${ledClass(outcome?.feedback.led ?? "off")}`} />
 
-                <div className="relative aspect-video w-full max-w-[720px] overflow-hidden rounded-[2rem] bg-[#0d1b15] shadow-inner">
-                  <video ref={videoRef} muted playsInline className="h-full w-full scale-x-[-1] object-cover" />
-
-                  <div className="pointer-events-none absolute inset-0 grid place-items-center">
-                    <div className={`h-[62%] w-[42%] rounded-[45%] border-2 ${stage === "verifying" || stage === "enrolling" ? "animate-pulse border-emerald-300/80" : "border-white/35"}`} />
-                  </div>
+                <div className="relative aspect-video w-full max-w-[690px] overflow-hidden rounded-[2rem] border border-[var(--border)] bg-slate-950 shadow-inner">
+                  <video
+                    ref={videoRef}
+                    muted
+                    playsInline
+                    className="h-full w-full scale-x-[-1] object-cover"
+                  />
 
                   {!cameraReady ? (
-                    <div className="absolute inset-0 grid place-items-center bg-[#0d1b15] px-8 text-white">
+                    <div className="absolute inset-0 grid place-items-center bg-slate-950 px-8 text-white">
                       <div>
-                        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-white/15 bg-white/5 text-2xl">◎</div>
-                        <p className="mt-5 text-lg font-semibold">Camera permission required</p>
-                        <p className="mt-2 max-w-sm text-sm leading-6 text-white/60">Webcam hanya dipakai untuk frame demo dan tidak menyimpan foto mentah ke database.</p>
+                        <div className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-white/15 bg-white/5 text-2xl">
+                          ◎
+                        </div>
+                        <p className="mt-5 text-lg font-semibold">Kamera belum diaktifkan</p>
+                        <p className="mt-2 text-sm text-slate-400">
+                          Aktifkan kamera dari panel petunjuk untuk memulai pengujian.
+                        </p>
                       </div>
                     </div>
                   ) : null}
 
-                  <div className="absolute left-4 top-4 flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
-                    <span className={`h-1.5 w-1.5 rounded-full ${busy ? "animate-pulse bg-emerald-400" : "bg-white/60"}`} />
-                    {stage === "enrolling" ? "Extracting template" : stage === "verifying" ? "Verifying 1:1" : "Live camera"}
+                  {cameraReady ? (
+                    <div className="pointer-events-none absolute inset-0 grid place-items-center">
+                      <div className="h-[68%] w-[46%] rounded-[42%] border-2 border-dashed border-white/50" />
+                    </div>
+                  ) : null}
+
+                  <div className="absolute left-4 top-4 rounded-full border border-white/10 bg-black/45 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-white backdrop-blur">
+                    {stage === "enrolling"
+                      ? "Mendaftarkan wajah..."
+                      : stage === "verifying"
+                        ? "Memeriksa kecocokan wajah..."
+                        : "Kamera langsung"}
                   </div>
 
-                  <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between rounded-2xl border border-white/10 bg-black/45 px-4 py-3 text-left text-white backdrop-blur">
-                    <div>
-                      <p className="text-[10px] uppercase tracking-[0.16em] text-white/50">Current challenge</p>
-                      <p className="mt-1 text-sm font-semibold">{challengeLabel}</p>
-                    </div>
-                    <span className="text-xs text-white/60">1 face only</span>
+                  <div className="absolute bottom-4 left-4 right-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-black/45 px-4 py-3 text-xs text-slate-200 backdrop-blur">
+                    <span>Pastikan satu wajah berada di dalam garis panduan.</span>
+                    <span>Gambar asli tidak disimpan</span>
                   </div>
                 </div>
 
                 {outcome ? (
-                  <div className={`mt-7 w-full max-w-2xl rounded-2xl border p-5 text-left ${outcome.accepted ? "border-emerald-200 bg-emerald-50" : "border-rose-200 bg-rose-50"}`}>
-                    <div className="flex flex-wrap items-start justify-between gap-4">
-                      <div>
-                        <p className={`text-xs font-bold uppercase tracking-[0.18em] ${outcome.accepted ? "text-emerald-700" : "text-rose-700"}`}>{outcome.code}</p>
-                        <h2 className="mt-2 text-2xl font-semibold tracking-[-0.03em]">{outcome.accepted ? "Identity verified" : "Identity rejected"}</h2>
-                        <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{outcome.message}</p>
-                      </div>
-                      <span className={`grid h-12 w-12 place-items-center rounded-full text-xl font-bold ${outcome.accepted ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"}`}>{outcome.accepted ? "✓" : "×"}</span>
-                    </div>
+                  <div className="mt-8 max-w-2xl">
+                    <p className={`text-xs font-bold uppercase tracking-[0.18em] ${outcome.accepted ? "text-emerald-700" : "text-rose-700"}`}>
+                      {attendanceOutcomeLabel(outcome.code)}
+                    </p>
+                    <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
+                      {outcome.accepted ? "Identitas sesuai" : "Verifikasi ditolak"}
+                    </h2>
+                    <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-[var(--muted)]">
+                      {outcome.message}
+                    </p>
                   </div>
                 ) : (
-                  <div className="mt-7 max-w-2xl">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--success)]">{demoFaceToken ? "Temporary RFID identity ready" : "Live demo setup"}</p>
-                    <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em]">{challengeLabel}</h2>
-                    <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                      {!demoFaceToken
-                        ? "Daftarkan satu wajah sebagai pemilik kartu virtual. Foto mentah tidak dipersist."
-                        : !ownerPassed
-                          ? "Tetap gunakan orang yang sama dan jalankan verifikasi pertama."
-                          : !mismatchSeen
-                            ? "Sekarang minta teman berdiri di depan kamera dan jalankan tombol verifikasi yang sama."
-                            : "Anda sudah membuktikan jalur MATCH dan MISMATCH dengan input kamera nyata."}
+                  <div className="mt-8 max-w-xl">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--muted)]">
+                      {demoFaceToken ? "KARTU RFID SEMENTARA SIAP" : "PERSIAPAN PENGUJIAN"}
+                    </p>
+                    <h2 className="mt-4 text-3xl font-semibold tracking-[-0.04em] sm:text-5xl">
+                      {challengeLabel}
+                    </h2>
+                    <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
+                      {demoFaceToken
+                        ? "Tekan tombol verifikasi saat wajah berada di kamera. Sistem akan membandingkannya dengan wajah pemilik kartu yang didaftarkan sebelumnya."
+                        : "Aktifkan kamera, isi nama pemilik kartu, lalu daftarkan satu gambar wajah sebagai identitas sementara untuk pengujian."}
                     </p>
                   </div>
                 )}
               </div>
 
               <aside className="bg-[var(--surface-soft)]/55 p-5 sm:p-6">
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Live transaction trace</p>
-                <div className="mt-4 space-y-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
+                  Alur pemeriksaan sistem
+                </p>
+
+                <div className="mt-5 space-y-3">
                   {[
-                    ["RFID", demoFaceToken ? "LIVE:DEMO:CARD" : "Waiting for enrollment"],
-                    ["Identity", demoFaceToken ? displayName : "Unbound"],
-                    ["Face model", result?.resolution?.modelName ?? "OpenCV YuNet + SFace"],
-                    ["Face status", result?.resolution?.faceStatus ?? (stage === "verifying" ? "Processing" : "Waiting")],
-                    ["Decision", outcome?.code ?? "Waiting for engine"],
+                    ["Kartu RFID", demoFaceToken ? "Kartu uji terdaftar" : "Belum didaftarkan"],
+                    ["Pemilik kartu", demoFaceToken ? displayName : "Belum ada"],
+                    ["Pengenal wajah", result?.resolution?.modelName ?? "YuNet + SFace"],
+                    ["Status wajah", faceStatusLabel(result?.resolution?.faceStatus)],
+                    ["Keputusan sistem", outcome ? attendanceOutcomeLabel(outcome.code) : "Menunggu verifikasi"],
                   ].map(([label, value]) => (
-                    <div key={label} className="rounded-2xl border border-[var(--border)] bg-white p-4 shadow-sm">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">{label}</p>
-                      <p className="mt-2 break-words text-sm font-semibold">{value}</p>
+                    <div key={label} className="rounded-2xl border border-[var(--border)] bg-white p-4">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                        {label}
+                      </p>
+                      <p className="mt-2 break-words text-sm font-medium">{value}</p>
                     </div>
                   ))}
                 </div>
 
                 {result?.resolution ? (
-                  <div className="mt-4 rounded-2xl border border-[var(--border-strong)] bg-white p-4 shadow-sm">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--success)]">Verification metrics</p>
+                  <div className="mt-4 rounded-2xl border border-[var(--border)] bg-white p-4">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">
+                      Hasil pemeriksaan wajah
+                    </p>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
-                      <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-                        <p className="text-[var(--muted)]">Similarity</p>
-                        <p className="mt-1 text-base font-bold">{result.resolution.verificationScore?.toFixed(3) ?? "—"}</p>
+                      <div>
+                        <p className="text-[var(--muted)]">Skor kemiripan</p>
+                        <p className="mt-1 font-semibold">
+                          {result.resolution.verificationScore?.toFixed(3) ?? "—"}
+                        </p>
                       </div>
-                      <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-                        <p className="text-[var(--muted)]">Threshold</p>
-                        <p className="mt-1 text-base font-bold">{result.resolution.threshold.toFixed(3)}</p>
+                      <div>
+                        <p className="text-[var(--muted)]">Batas kecocokan</p>
+                        <p className="mt-1 font-semibold">{result.resolution.threshold.toFixed(3)}</p>
                       </div>
-                      <div className="rounded-xl bg-[var(--surface-soft)] p-3">
-                        <p className="text-[var(--muted)]">Quality</p>
-                        <p className="mt-1 text-base font-bold">{formatPercent(result.resolution.qualityScore)}</p>
+                      <div>
+                        <p className="text-[var(--muted)]">Kualitas gambar</p>
+                        <p className="mt-1 font-semibold">{formatPercent(result.resolution.qualityScore)}</p>
                       </div>
-                      <div className="rounded-xl bg-[var(--warning-soft)] p-3">
-                        <p className="text-[var(--muted)]">Liveness</p>
-                        <p className="mt-1 font-bold text-[var(--warning)]">{result.resolution.livenessChecked ? "Checked" : "V1 off"}</p>
+                      <div>
+                        <p className="text-[var(--muted)]">Pemeriksaan keaslian</p>
+                        <p className={`mt-1 font-semibold ${result.resolution.livenessChecked ? "text-emerald-700" : "text-amber-700"}`}>
+                          {result.resolution.livenessChecked ? "Sudah diperiksa" : "Belum tersedia"}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -483,140 +533,176 @@ export function LiveRecruiterTerminal() {
             </div>
           </section>
 
-          <aside className="space-y-4">
-            <section className="rounded-[2rem] border border-[var(--border)] bg-white p-5 shadow-lg shadow-emerald-950/5 lg:p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--success)]">Recruiter controls</p>
-                  <h2 className="mt-2 text-xl font-semibold">Run a real identity challenge</h2>
-                  <p className="mt-2 text-xs leading-5 text-[var(--muted)]">Tidak ada tombol MATCH/MISMATCH. Tombol verifikasi selalu sama.</p>
-                </div>
-                <span className="rounded-full bg-[var(--success-soft)] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--success-strong)]">Live</span>
-              </div>
+          <aside className="rounded-[2rem] border border-[var(--border)] bg-white p-5 shadow-sm lg:p-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--success)]">
+                Petunjuk pengujian
+              </p>
+              <h2 className="mt-2 text-xl font-semibold">Coba seperti proses absensi siswa</h2>
+              <p className="mt-2 text-xs leading-5 text-[var(--muted)]">
+                Tidak tersedia tombol untuk memilih hasil berhasil atau gagal. Hasil ditentukan dari wajah yang benar-benar berada di kamera.
+              </p>
+            </div>
 
-              <div className="mt-5 space-y-3">
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/60 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-[var(--success)] shadow-sm">1</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Camera</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Allow webcam access and keep one face inside the guide.</p>
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={cameraReady ? stopCamera : startCamera}
-                        className="mt-3 w-full rounded-xl border border-[var(--border-strong)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:bg-[var(--surface-soft)] disabled:opacity-50"
-                      >
-                        {cameraReady ? "Turn camera off" : "Enable camera"}
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/60 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-[var(--success)] shadow-sm">2</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Bind a temporary RFID card</p>
-                      <input
-                        value={displayName}
-                        onChange={(event) => setDisplayName(event.target.value.slice(0, 80))}
-                        disabled={busy || Boolean(demoFaceToken)}
-                        placeholder="Your name"
-                        className="mt-3 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none transition focus:border-[var(--success)] disabled:opacity-60"
-                      />
-                      <button
-                        type="button"
-                        disabled={!cameraReady || busy}
-                        onClick={enrollLiveFace}
-                        className="mt-3 w-full rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--success-strong)] disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        {stage === "enrolling" ? "Creating face template..." : demoFaceToken ? "Re-enroll owner face" : "Enroll my face"}
-                      </button>
-
-                      {demoFaceToken ? (
-                        <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
-                          <p className="font-semibold">Temporary identity ready</p>
-                          <p className="mt-1 text-emerald-700">Quality {formatPercent(enrollQuality)} · memory-only token{expiresAt ? ` · expires ${new Date(expiresAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : ""}</p>
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/60 p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white text-xs font-bold text-[var(--success)] shadow-sm">3</span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold">Scan RFID + verify whoever is on camera</p>
-                      <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Same owner should pass. Then swap to a friend and press this exact same button.</p>
-                      <button
-                        type="button"
-                        disabled={!cameraReady || !demoFaceToken || busy}
-                        onClick={verifyCurrentFace}
-                        className="mt-3 w-full rounded-xl border border-[var(--success)] bg-white px-4 py-2.5 text-sm font-bold text-[var(--success-strong)] transition hover:bg-[var(--success-soft)] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {stage === "verifying" ? "Verifying identity..." : "Scan RFID + verify face"}
-                      </button>
-                    </div>
-                  </div>
+            <div className="mt-6 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/55 p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--success-soft)] text-xs font-bold text-[var(--success)]">1</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Aktifkan kamera</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Berikan izin penggunaan kamera pada browser.</p>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={cameraReady ? stopCamera : startCamera}
+                    className="mt-3 w-full rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)] disabled:opacity-50"
+                  >
+                    {cameraReady ? "Matikan kamera" : "Aktifkan kamera"}
+                  </button>
                 </div>
               </div>
+            </div>
 
-              {message ? <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">{message}</div> : null}
+            <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/55 p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--success-soft)] text-xs font-bold text-[var(--success)]">2</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Daftarkan pemilik kartu</p>
+                  <input
+                    value={displayName}
+                    onChange={(event) => setDisplayName(event.target.value.slice(0, 80))}
+                    disabled={busy || Boolean(demoFaceToken)}
+                    placeholder="Nama pemilik kartu"
+                    className="mt-3 w-full rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-sm outline-none focus:border-[var(--success)] disabled:opacity-60"
+                  />
+                  <button
+                    type="button"
+                    disabled={!cameraReady || busy}
+                    onClick={enrollLiveFace}
+                    className="mt-3 w-full rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[var(--success-strong)] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {stage === "enrolling" ? "Mendaftarkan wajah..." : demoFaceToken ? "Daftarkan ulang wajah" : "Daftarkan wajah pemilik"}
+                  </button>
 
-              <div className="mt-4 grid grid-cols-2 gap-3">
-                <button type="button" onClick={resetLiveDemo} disabled={busy} className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] disabled:opacity-50">Reset identity</button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setResult(null);
-                    setMessage(null);
-                    setStage(demoFaceToken ? "enrolled" : "ready");
-                  }}
-                  disabled={busy}
-                  className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-xs font-semibold text-[var(--muted)] transition hover:bg-[var(--surface-soft)] disabled:opacity-50"
-                >
-                  Clear result
-                </button>
+                  {demoFaceToken ? (
+                    <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">
+                      <p className="font-semibold">Identitas sementara siap digunakan</p>
+                      <p className="mt-1 text-emerald-700">
+                        Kualitas pendaftaran {formatPercent(enrollQuality)}
+                        {expiresAt ? ` · berlaku sampai ${new Date(expiresAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })}` : ""}.
+                      </p>
+                    </div>
+                  ) : null}
+                </div>
               </div>
-            </section>
+            </div>
 
-            <section className="rounded-[2rem] border border-[var(--border)] bg-white p-5 shadow-lg shadow-emerald-950/5 lg:p-6">
+            <div className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/55 p-4">
+              <div className="flex items-start gap-3">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--success-soft)] text-xs font-bold text-[var(--success)]">3</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Tempelkan kartu dan verifikasi wajah</p>
+                  <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
+                    Coba wajah pemilik terlebih dahulu. Setelah diterima, ganti dengan wajah orang lain lalu lakukan pemeriksaan lagi.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={!cameraReady || !demoFaceToken || busy}
+                    onClick={verifyCurrentFace}
+                    className="mt-3 w-full rounded-xl bg-[#17352A] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#0f2b20] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    {stage === "verifying" ? "Memeriksa identitas..." : "Tempelkan kartu & verifikasi wajah"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {message ? (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-800">
+                {message}
+              </div>
+            ) : null}
+
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={resetLiveDemo}
+                disabled={busy}
+                className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-xs text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:opacity-50"
+              >
+                Ulangi dari awal
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setResult(null);
+                  setMessage(null);
+                  setStage(demoFaceToken ? "enrolled" : "ready");
+                }}
+                disabled={busy}
+                className="rounded-xl border border-[var(--border)] bg-white px-3 py-2.5 text-xs text-[var(--muted)] transition hover:border-[var(--border-strong)] hover:text-[var(--text)] disabled:opacity-50"
+              >
+                Bersihkan hasil
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-[var(--border)] bg-[var(--surface-soft)]/55 p-4 text-[11px] leading-5 text-[var(--muted)]">
+              <p className="font-semibold text-[var(--text)]">Privasi mode pengujian</p>
+              <p className="mt-1">
+                Foto asli tidak disimpan ke basis data sekolah. Data wajah sementara dienkripsi, hanya berlaku singkat, dan dibuang saat identitas diulang atau sesi berakhir. Versi saat ini belum memiliki pemeriksaan anti-spoof atau liveness.
+              </p>
+            </div>
+
+            <div className="mt-5 border-t border-[var(--border)] pt-5">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">Verification history</p>
-                  <h3 className="mt-1 text-base font-semibold">Same button, different people</h3>
+                  <p className="text-xs font-semibold">Riwayat pengujian</p>
+                  <p className="mt-1 text-[11px] text-[var(--muted)]">Maksimal enam pemeriksaan terakhir pada tab ini.</p>
                 </div>
-                <span className="rounded-full bg-[var(--surface-soft)] px-2.5 py-1 text-xs font-semibold text-[var(--muted)]">{history.length}</span>
+                {history.length ? (
+                  <button
+                    type="button"
+                    onClick={() => setHistory([])}
+                    className="text-[11px] font-semibold text-[var(--success)]"
+                  >
+                    Hapus riwayat
+                  </button>
+                ) : null}
               </div>
 
-              <div className="mt-4 space-y-2">
-                {history.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-[var(--border-strong)] bg-[var(--surface-soft)]/50 p-5 text-center text-xs leading-5 text-[var(--muted)]">Run a verification to see MATCH/MISMATCH evidence here.</div>
-                ) : (
+              <div className="mt-3 space-y-2">
+                {history.length ? (
                   history.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--border)] bg-white p-3.5">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white ${item.accepted ? "bg-emerald-500" : "bg-rose-500"}`}>{item.accepted ? "✓" : "×"}</span>
-                        <div className="min-w-0">
-                          <p className={`truncate text-xs font-bold ${item.accepted ? "text-emerald-700" : "text-rose-700"}`}>{item.code}</p>
-                          <p className="mt-1 text-[11px] text-[var(--muted)]">score {item.score?.toFixed(3) ?? "—"} · threshold {item.threshold?.toFixed(3) ?? "—"}</p>
+                    <div key={item.id} className="rounded-xl border border-[var(--border)] bg-white p-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${item.accepted ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                            {item.accepted ? "✓" : "×"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-xs font-semibold">{attendanceOutcomeLabel(item.code)}</p>
+                            <p className="mt-0.5 text-[10px] text-[var(--muted)]">{formatTime(item.at)}</p>
+                          </div>
+                        </div>
+                        <div className="text-right text-[10px] text-[var(--muted)]">
+                          <p>Skor {item.score?.toFixed(3) ?? "—"}</p>
+                          <p>Kualitas {formatPercent(item.quality)}</p>
                         </div>
                       </div>
-                      <span className="shrink-0 text-[10px] text-[var(--muted)]">{formatTime(item.at)}</span>
                     </div>
                   ))
+                ) : (
+                  <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-soft)]/40 p-4 text-center text-xs text-[var(--muted)]">
+                    Belum ada hasil pengujian.
+                  </div>
                 )}
               </div>
-            </section>
-
-            <section className="rounded-2xl border border-[var(--border)] bg-[var(--success-soft)]/65 p-4 text-[11px] leading-5 text-[var(--muted)]">
-              <p className="font-semibold text-[var(--text)]">Privacy & technical scope</p>
-              <p className="mt-1">Raw photos are not persisted. The temporary embedding is wrapped in a short-lived encrypted token kept only in this browser tab. V1 intentionally reports liveness as not enabled.</p>
-            </section>
+            </div>
           </aside>
         </div>
+
+        <p className="mt-5 text-center text-[11px] leading-5 text-[var(--muted)]">
+          Mode pengujian ini tidak menulis kehadiran ke data siswa sekolah. Tujuannya menunjukkan proses verifikasi RFID dan wajah yang digunakan oleh sistem.
+        </p>
       </div>
     </main>
   );
