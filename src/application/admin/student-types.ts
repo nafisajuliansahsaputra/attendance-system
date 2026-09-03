@@ -24,3 +24,12 @@ export interface AssignStudentRfidResult {
   replacedCount: number;
   unchanged: boolean;
 }
+
+export interface TransferStudentEnrollmentResult {
+  studentId: string;
+  enrollmentId: string;
+  classId: string;
+  effectiveOn: string;
+  unchanged: boolean;
+  previousEnrollmentId?: string;
+}
