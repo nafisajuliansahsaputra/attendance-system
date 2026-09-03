@@ -38,7 +38,7 @@ function outcome(
 /**
  * Canonical pure attendance decision function.
  *
- * Adapters (web simulator, future Device API, Arduino bridge, ESP32) may resolve
+ * Adapters (web simulator, Device API, Arduino bridge, ESP32) may resolve
  * card/session/face context differently, but they must pass through this rule
  * boundary before a canonical attendance record can be created.
  */
@@ -49,6 +49,18 @@ export function evaluateAttendanceAttempt(input: ResolvedAttendanceAttempt): Att
 
   if (input.face.status === "mismatch") {
     return outcome(input, "FACE_MISMATCH", "Wajah tidak cocok dengan pemilik kartu.");
+  }
+
+  if (input.face.status === "no_face") {
+    return outcome(input, "FACE_NOT_DETECTED", "Wajah tidak terdeteksi dengan jelas.");
+  }
+
+  if (input.face.status === "low_quality") {
+    return outcome(
+      input,
+      "FACE_LOW_QUALITY",
+      "Kualitas tangkapan wajah belum cukup untuk verifikasi.",
+    );
   }
 
   if (input.face.status === "error") {
@@ -76,8 +88,18 @@ export function evaluateAttendanceAttempt(input: ResolvedAttendanceAttempt): Att
   }
 
   if (input.session.lateAfter && occurredAt > toMillis(input.session.lateAfter)) {
-    return outcome(input, "ACCEPTED_LATE", "Identitas terverifikasi. Absensi tercatat sebagai terlambat.", true);
+    return outcome(
+      input,
+      "ACCEPTED_LATE",
+      "Identitas terverifikasi. Absensi tercatat sebagai terlambat.",
+      true,
+    );
   }
 
-  return outcome(input, "ACCEPTED_ON_TIME", "Identitas terverifikasi. Absensi berhasil dicatat.", true);
+  return outcome(
+    input,
+    "ACCEPTED_ON_TIME",
+    "Identitas terverifikasi. Absensi berhasil dicatat.",
+    true,
+  );
 }
