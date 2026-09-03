@@ -34,4 +34,17 @@ describe("buildSupabasePersistencePayload", () => {
     expect(payload.p_outcome_code).toBe("UNKNOWN_CARD");
     expect(payload.p_accepted).toBe(false);
   });
+
+  it("persists explicit NOT_REQUIRED when a session does not require face verification", () => {
+    const attempt = {
+      ...buildDemoAttempt("verified", "request-db-no-face"),
+      face: { status: "not_required" as const },
+    };
+    const outcome = evaluateAttendanceAttempt(attempt);
+    const payload = buildSupabasePersistencePayload(attempt, outcome);
+
+    expect(payload.p_verification_result).toBe("NOT_REQUIRED");
+    expect(payload.p_verification_score).toBeNull();
+    expect(payload.p_accepted).toBe(true);
+  });
 });
