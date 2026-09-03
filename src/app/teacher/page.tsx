@@ -1,3 +1,4 @@
+import { SCHOOL, roleLabel } from "@/config/school";
 import { getHomeroomAttendanceSnapshot } from "../../infrastructure/homeroom/supabase-homeroom";
 import { requireAuthorizedUser } from "../../lib/auth/require-authorized-user";
 import { confirmAttendanceStatus } from "./actions";
@@ -37,7 +38,7 @@ function statusLabel(systemState: string, finalStatus?: string) {
 
 function statusClass(finalStatus?: string, needsConfirmation?: boolean) {
   if (needsConfirmation) {
-    return "border-[color:rgba(251,191,36,0.3)] bg-[color:rgba(251,191,36,0.08)] text-[var(--warning)]";
+    return "border-amber-200 bg-amber-50 text-amber-700";
   }
 
   if (finalStatus === "SAKIT" || finalStatus === "IZIN") {
@@ -45,10 +46,10 @@ function statusClass(finalStatus?: string, needsConfirmation?: boolean) {
   }
 
   if (finalStatus === "ALPA") {
-    return "border-[color:rgba(251,113,133,0.3)] bg-[color:rgba(251,113,133,0.08)] text-[var(--danger)]";
+    return "border-rose-200 bg-rose-50 text-rose-700";
   }
 
-  return "border-[color:rgba(74,222,128,0.25)] bg-[color:rgba(74,222,128,0.07)] text-[var(--success)]";
+  return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
 export default async function TeacherPage({ searchParams }: TeacherPageProps) {
@@ -80,13 +81,13 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
       <header className="flex flex-col gap-5 border-b border-[var(--border)] pb-7 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--success)]">
-            Homeroom workspace
+            {SCHOOL.name} · Wali Kelas
           </p>
           <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">
-            Absensi wali kelas
+            Pemeriksaan Kehadiran Siswa
           </h1>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            {context.fullName} · {email ?? context.role}
+            {context.fullName} · {roleLabel(context.role)}{email ? ` · ${email}` : ""}
           </p>
         </div>
 
@@ -109,7 +110,7 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
             <select
               name="class"
               defaultValue={selectedClass?.id}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
             >
               {context.classes.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -127,13 +128,13 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
               name="date"
               type="date"
               defaultValue={schoolDate}
-              className="w-full rounded-xl border border-[var(--border)] bg-[var(--background)] px-4 py-3 text-sm outline-none"
+              className="w-full rounded-xl border border-[var(--border)] bg-white px-4 py-3 text-sm outline-none"
             />
           </label>
 
           <button
             type="submit"
-            className="rounded-xl bg-[var(--success)] px-5 py-3 text-sm font-semibold text-[#07100d]"
+            className="rounded-xl bg-[var(--success)] px-5 py-3 text-sm font-semibold text-white"
           >
             Tampilkan
           </button>
@@ -141,13 +142,13 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
       </section>
 
       {params.saved === "1" ? (
-        <div className="mt-5 rounded-2xl border border-[color:rgba(74,222,128,0.25)] bg-[color:rgba(74,222,128,0.07)] px-4 py-3 text-sm text-[var(--success)]">
-          Status ketidakhadiran berhasil dikonfirmasi dan masuk ke audit trail.
+        <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Status ketidakhadiran berhasil dikonfirmasi dan tercatat dalam riwayat perubahan.
         </div>
       ) : null}
 
       {params.error ? (
-        <div className="mt-5 rounded-2xl border border-[color:rgba(251,113,133,0.3)] bg-[color:rgba(251,113,133,0.08)] px-4 py-3 text-sm text-[var(--danger)]">
+        <div className="mt-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
           Konfirmasi tidak dapat disimpan. Data mungkin sudah berubah atau Anda tidak memiliki akses ke siswa tersebut.
         </div>
       ) : null}
@@ -157,7 +158,7 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
           ["Hadir", onTime],
           ["Terlambat", late],
           ["Perlu konfirmasi", pending],
-          ["S/I/A terkonfirmasi", absentConfirmed],
+          ["Sakit / Izin / Alpa", absentConfirmed],
         ].map(([label, value]) => (
           <article
             key={label}
@@ -186,9 +187,9 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
                 <tr>
                   <th className="px-5 py-4 font-medium">Siswa</th>
                   <th className="px-5 py-4 font-medium">NIS</th>
-                  <th className="px-5 py-4 font-medium">Masuk</th>
-                  <th className="px-5 py-4 font-medium">Status</th>
-                  <th className="px-5 py-4 font-medium">Konfirmasi wali kelas</th>
+                  <th className="px-5 py-4 font-medium">Waktu masuk</th>
+                  <th className="px-5 py-4 font-medium">Status kehadiran</th>
+                  <th className="px-5 py-4 font-medium">Tindakan wali kelas</th>
                 </tr>
               </thead>
               <tbody>
@@ -216,8 +217,8 @@ export default async function TeacherPage({ searchParams }: TeacherPageProps) {
                           <input
                             name="note"
                             maxLength={500}
-                            placeholder="Catatan opsional"
-                            className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] px-3 py-2 text-xs outline-none"
+                            placeholder="Catatan wali kelas (opsional)"
+                            className="w-full rounded-lg border border-[var(--border)] bg-white px-3 py-2 text-xs outline-none"
                           />
                           <div className="flex flex-wrap gap-2">
                             {(["SAKIT", "IZIN", "ALPA"] as const).map((status) => (
