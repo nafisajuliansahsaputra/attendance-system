@@ -137,6 +137,7 @@ export async function POST(request: Request) {
         occurrenceId: payload.session.id,
         payload: {
           reason: outcome.code,
+          qualityReason: verification.reason ?? null,
           verificationStatus: verification.status,
           qualityScore: verification.qualityScore ?? null,
           detectionScore: verification.detectionScore ?? null,
@@ -153,6 +154,9 @@ export async function POST(request: Request) {
           retryable: true,
           verificationTransactionId: payload.transactionId,
           expiresAt: payload.expiresAt,
+          reason: verification.reason ?? undefined,
+          qualityScore: verification.qualityScore ?? undefined,
+          detectionScore: verification.detectionScore ?? undefined,
           livenessChecked: false,
         },
         { status: 422 },
