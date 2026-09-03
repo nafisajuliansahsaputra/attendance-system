@@ -1,15 +1,21 @@
 @import "tailwindcss";
 
 :root {
-  --background: #07100d;
-  --surface: #0e1915;
-  --surface-soft: #14221d;
-  --border: #24352f;
-  --text: #edf5f1;
-  --muted: #9bada5;
-  --success: #4ade80;
-  --danger: #fb7185;
-  --warning: #fbbf24;
+  --background: #f6faf7;
+  --surface: #ffffff;
+  --surface-soft: #eef7f1;
+  --surface-strong: #e3f1e8;
+  --border: #d8e7de;
+  --border-strong: #b9d8c5;
+  --text: #17352a;
+  --muted: #6d8278;
+  --success: #179451;
+  --success-strong: #0f7a40;
+  --success-soft: #e7f7ed;
+  --danger: #dc3d4f;
+  --danger-soft: #fff0f2;
+  --warning: #b7791f;
+  --warning-soft: #fff8e8;
 }
 
 * {
@@ -24,7 +30,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(74, 222, 128, 0.08), transparent 34rem),
+    radial-gradient(circle at 88% 0%, rgba(23, 148, 81, 0.1), transparent 28rem),
+    radial-gradient(circle at 0% 30%, rgba(23, 148, 81, 0.045), transparent 24rem),
     var(--background);
   color: var(--text);
   font-family: Arial, Helvetica, sans-serif;
@@ -35,6 +42,40 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+input,
+select,
+textarea {
+  color: inherit;
+}
+
 ::selection {
-  background: rgba(74, 222, 128, 0.28);
+  background: rgba(23, 148, 81, 0.2);
+}
+
+/* Legacy dark utility cleanup while pages are migrated to the white-first system. */
+[class~="bg-black/10"] {
+  background-color: rgba(23, 53, 42, 0.025);
+}
+
+[class~="bg-black/15"] {
+  background-color: rgba(23, 53, 42, 0.035);
+}
+
+[class~="bg-black/20"] {
+  background-color: rgba(23, 53, 42, 0.05);
+}
+
+[class~="text-slate-200"],
+[class~="text-slate-300"] {
+  color: var(--text);
+}
+
+[class~="text-slate-400"],
+[class~="text-slate-500"] {
+  color: var(--muted);
+}
+
+[class~="hover:text-white"]:hover {
+  color: var(--success-strong);
 }
