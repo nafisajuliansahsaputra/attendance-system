@@ -58,7 +58,7 @@ export async function POST(request: Request) {
         {
           code: "MULTIPLE_FACES",
           accepted: false,
-          reason: verification.reason ?? "Exactly one face is required",
+          reason: verification.reason ?? "Hanya satu wajah yang boleh berada di depan kamera",
           qualityScore: verification.qualityScore ?? undefined,
           detectionScore: verification.detectionScore ?? undefined,
           livenessChecked: verification.livenessChecked,
@@ -83,13 +83,13 @@ export async function POST(request: Request) {
         student: {
           id: "live-recruiter-demo",
           name: token.displayName,
-          className: "Recruiter Live Demo",
+          className: "Mode Pengujian Terminal",
         },
       },
       face: mapFace(verification.status, verification.score),
       session: {
         id: "live-recruiter-session",
-        name: "Live Identity Verification",
+        name: "Pengujian Verifikasi Identitas",
         type: "custom",
         opensAt,
         closesAt,
