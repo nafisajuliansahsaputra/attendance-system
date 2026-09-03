@@ -12,7 +12,9 @@
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm run test",
     "staff:provision": "node scripts/provision-staff.mjs",
-    "staff:provision:env": "node --env-file=.env.local scripts/provision-staff.mjs"
+    "staff:provision:env": "node --env-file=.env.local scripts/provision-staff.mjs",
+    "device:rotate-secret": "node scripts/provision-device-secret.mjs",
+    "device:rotate-secret:env": "node --env-file=.env.local scripts/provision-device-secret.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
