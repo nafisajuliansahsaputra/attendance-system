@@ -36,8 +36,9 @@ The documents below are normative. When documents conflict, follow the precedenc
 8. [`docs/07-ROADMAP-TODO.md`](docs/07-ROADMAP-TODO.md) — milestones and acceptance gates.
 9. [`docs/08-WORKING-AGREEMENTS.md`](docs/08-WORKING-AGREEMENTS.md) — engineering rules and Definition of Done.
 10. [`docs/09-DECISION-LOG.md`](docs/09-DECISION-LOG.md) — architecture/product decision log.
-11. [`SKILLS.md`](SKILLS.md) — engineering capabilities required by the project.
-12. [`WORK.md`](WORK.md) — current work state and next build target.
+11. [`docs/10-TEST-STRATEGY.md`](docs/10-TEST-STRATEGY.md) — QA strategy and critical regression invariants.
+12. [`SKILLS.md`](SKILLS.md) — engineering capabilities required by the project.
+13. [`WORK.md`](WORK.md) — current work state and next build target.
 
 ## Target system layers
 
