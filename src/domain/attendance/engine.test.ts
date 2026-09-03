@@ -19,13 +19,33 @@ describe("evaluateAttendanceAttempt", () => {
     expect(result.recordAttendance).toBe(true);
   });
 
-  it("rejects face mismatch with rapid red feedback", () => {
+  it("rejects face mismatch with the original rapid red alarm", () => {
     const result = evaluateAttendanceAttempt(buildDemoAttempt("face-mismatch", id));
     expect(result.code).toBe("FACE_MISMATCH");
     expect(result.recordAttendance).toBe(false);
     expect(result.feedback.led).toBe("red");
     expect(result.feedback.beep.count).toBeGreaterThan(1);
     expect(result.feedback.beep.intervalMs).toBeLessThan(100);
+  });
+
+  it("rejects a missing face without using the buddy-punching alarm pattern", () => {
+    const attempt = buildDemoAttempt("verified", id);
+    attempt.face = { status: "no_face", modelVersion: "test-model" };
+    const result = evaluateAttendanceAttempt(attempt);
+
+    expect(result.code).toBe("FACE_NOT_DETECTED");
+    expect(result.recordAttendance).toBe(false);
+    expect(result.feedback.led).toBe("red");
+    expect(result.feedback.beep.intervalMs).toBeGreaterThanOrEqual(100);
+  });
+
+  it("rejects low-quality face capture without recording attendance", () => {
+    const attempt = buildDemoAttempt("verified", id);
+    attempt.face = { status: "low_quality", modelVersion: "test-model" };
+    const result = evaluateAttendanceAttempt(attempt);
+
+    expect(result.code).toBe("FACE_LOW_QUALITY");
+    expect(result.recordAttendance).toBe(false);
   });
 
   it("does not create attendance for an unknown card", () => {
