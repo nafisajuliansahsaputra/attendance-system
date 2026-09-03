@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { buildReportDatePresets } from "../../../application/reports/presets";
 import { getClassAttendanceReport } from "../../../infrastructure/reports/supabase-class-report";
 import { getReportingPeriodPresets } from "../../../infrastructure/reports/supabase-report-periods";
 import { requireAuthorizedUser } from "../../../lib/auth/require-authorized-user";
@@ -15,16 +16,6 @@ interface ReportsPageProps {
 
 function isDate(value?: string): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/.test(value));
-}
-
-function shiftDate(date: string, days: number) {
-  const value = new Date(`${date}T00:00:00.000Z`);
-  value.setUTCDate(value.getUTCDate() + days);
-  return value.toISOString().slice(0, 10);
-}
-
-function earlierDate(first: string, second: string) {
-  return first <= second ? first : second;
 }
 
 function presetHref(classId: string, from: string, to: string) {
@@ -73,36 +64,12 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
     getReportingPeriodPresets(userId),
   ]);
 
-  const presets: Array<readonly [string, string, string]> = selectedClass
-    ? [
-        ["7 hari", shiftDate(today, -6), today],
-        ["Bulan ini", monthStart, today],
-      ]
+  const presets = selectedClass
+    ? buildReportDatePresets({
+        today,
+        periods: reportingPeriods,
+      })
     : [];
-
-  if (selectedClass) {
-    reportingPeriods.terms
-      .filter((term) => term.startsOn <= today)
-      .forEach((term) => {
-        presets.push([
-          term.name,
-          term.startsOn,
-          earlierDate(term.endsOn, today),
-        ]);
-      });
-
-    if (
-      reportingPeriods.academicYear &&
-      reportingPeriods.academicYear.startsOn <= today
-    ) {
-      presets.push([
-        `Tahun Ajaran ${reportingPeriods.academicYear.label}`,
-        reportingPeriods.academicYear.startsOn,
-        earlierDate(reportingPeriods.academicYear.endsOn, today),
-      ]);
-    }
-  }
-
   const exportQuery = selectedClass
     ? new URLSearchParams({
         class: selectedClass.id,
@@ -185,13 +152,13 @@ export default async function ReportsPage({ searchParams }: ReportsPageProps) {
 
         {selectedClass ? (
           <div className="mt-4 flex flex-wrap gap-2">
-            {presets.map(([label, from, to]) => (
+            {presets.map((preset) => (
               <Link
-                key={`${label}-${from}-${to}`}
-                href={presetHref(selectedClass.id, from, to)}
+                key={`${preset.label}-${preset.from}-${preset.to}`}
+                href={presetHref(selectedClass.id, preset.from, preset.to)}
                 className="rounded-full border border-[var(--border)] px-3 py-1.5 text-xs transition hover:bg-[var(--surface-soft)]"
               >
-                {label}
+                {preset.label}
               </Link>
             ))}
           </div>
