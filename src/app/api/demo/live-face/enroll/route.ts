@@ -10,7 +10,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const requestSchema = z.object({
-  displayName: z.string().trim().min(1).max(80).default("Recruiter Demo"),
+  displayName: z.string().trim().min(1).max(80).default("Pengunjung"),
   imageBase64: z.string().min(16).max(3_000_000),
 });
 
@@ -37,11 +37,24 @@ export async function POST(request: Request) {
   try {
     const extraction = await extractFaceEmbedding(parsed.data.imageBase64);
 
-    if (extraction.status !== "OK" || !extraction.embedding) {
+    if (extraction.status !== "OK") {
       return NextResponse.json(
         {
           code: rejectionCode(extraction.status),
           reason: extraction.reason ?? undefined,
+          qualityScore: extraction.qualityScore ?? undefined,
+          detectionScore: extraction.detectionScore ?? undefined,
+          livenessChecked: extraction.livenessChecked,
+        },
+        { status: 422 },
+      );
+    }
+
+    if (!extraction.embedding) {
+      return NextResponse.json(
+        {
+          code: "INVALID_FACE_SAMPLE",
+          reason: "Data pengenal wajah tidak berhasil dibentuk dari gambar kamera.",
           qualityScore: extraction.qualityScore ?? undefined,
           detectionScore: extraction.detectionScore ?? undefined,
           livenessChecked: extraction.livenessChecked,
