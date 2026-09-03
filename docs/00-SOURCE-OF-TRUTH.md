@@ -3,7 +3,7 @@
 **Project:** Smart Attendance System  
 **Origin:** Rebuild and modernization of a 2025 P5 SMK project  
 **Document role:** Highest-priority product specification  
-**Status:** Baseline v1.0 — 2026-09-03
+**Status:** V1 test-ready baseline — 2026-09-03
 
 ---
 
@@ -18,29 +18,22 @@ If project documents conflict, use this order:
 5. Roadmap / work plan
 6. Existing implementation
 
-**Existing code never overrides a documented product rule.** If implementation and this document disagree, the implementation is considered wrong until the documentation is intentionally revised.
+**Existing code never overrides a documented product rule.** If implementation and this document disagree, implementation is wrong until the documentation is intentionally revised.
 
 ---
 
 ## 2. Product definition
 
-The project is a school attendance management system whose original physical terminal concept consists of:
+This is a school attendance management system whose original physical-terminal concept consists of RFID, camera-based face verification, green/red indicators, buzzer feedback, backend/database, and reporting.
 
-- RFID card and reader/scanner;
-- camera module;
-- face verification;
-- green/red visual indicators;
-- buzzer audio feedback;
-- backend/database and reporting.
+The rebuild must remain useful without current physical hardware. A simulator/recruiter demo may replace device input, but the software must remain genuinely integrable with physical hardware later.
 
-The rebuild must be useful even while no physical hardware is connected. A simulator/recruiter demo replaces device input during development, but the system must remain genuinely integrable with real hardware later.
+Primary problems:
 
-The primary problems solved are:
-
-1. reduce proxy attendance / card lending by verifying that the card user matches the registered card owner;
-2. automate school attendance capture across multiple attendance sessions;
-3. automate weekly, monthly, semester, academic-year/annual, and custom-range recaps so homeroom teachers do not manually tally attendance;
-4. support real school scheduling patterns, including targeted recurring sessions and special-event attendance.
+1. reduce proxy attendance/card lending by verifying that the person presenting an RFID card matches the registered owner;
+2. capture attendance across multiple school/activity sessions;
+3. automate weekly, monthly, semester, academic-year/annual, and custom-range recaps;
+4. support targeted recurring schedules and one-off/special school activities.
 
 ---
 
@@ -49,35 +42,58 @@ The primary problems solved are:
 ```mermaid
 flowchart TD
     A[RFID scanned] --> B{Card registered?}
-    B -- No --> U[Reject: unknown card]
-    B -- Yes --> C[Load registered card owner]
-    C --> D[Capture face]
-    D --> E[1:1 face verification against card owner]
-    E -->|Match| F{Student eligible for active session?}
-    E -->|Mismatch / cannot verify| R[Reject verification]
-    F -->|Yes| G[Apply attendance session rules]
-    F -->|No| N[Do not record attendance for that session]
-    G --> H[Persist raw event + derived attendance result]
-    H --> I[Return device output command/result]
+    B -- No --> U[Reject unknown card]
+    B -- Yes --> C[Resolve expected card owner]
+    C --> D{Face required?}
+    D -- No --> F[Resolve session and eligibility]
+    D -- Yes --> E[Capture live face and perform 1:1 verification]
+    E -->|Match| F
+    E -->|Mismatch| R[Reject identity]
+    E -->|No face / low quality / service failure| Q[Return retry/error state]
+    F --> G{Eligible active session?}
+    G -->|No| N[Do not record attendance]
+    G -->|Yes| H[Apply duplicate / time / lateness rules]
+    H --> I[Atomic persistence of audit + canonical outcome]
+    I --> J[Return device feedback]
 ```
 
 ### Hardware feedback semantics
 
 - **Verified / accepted:** green LED + one short beep.
-- **Face mismatch / rejected:** red LED + rapid repeated beeps.
-- Other non-fraud/non-match states such as `not eligible`, `outside session`, or `duplicate` should have distinct neutral/error feedback instead of pretending they are face mismatches. Exact patterns remain configurable until hardware implementation.
+- **Face mismatch / proxy-attendance rejection:** red LED + rapid repeated beeps.
+- `not eligible`, `outside session`, `duplicate`, `no face`, `low quality`, and service failures must not masquerade as face mismatch; they use neutral/error feedback.
 
 ---
 
 ## 4. Face verification rule
 
-The face capability is primarily **1:1 face verification**:
+Face capability is primarily **1:1 verification**:
 
-1. RFID determines the expected person.
-2. The camera provides the live face sample.
-3. The face service compares the sample only against the registered reference for the RFID owner.
+1. RFID determines the expected student.
+2. Camera provides a live face sample.
+3. Face service compares only against that student's active enrolled template.
 
-The product does not require unrestricted 1:N identification of everyone in front of the camera.
+The product does not require unrestricted 1:N identification or school-wide face search.
+
+### V1 biometric implementation truth
+
+V1 uses a replaceable private Python/FastAPI service with:
+
+- OpenCV YuNet face detection;
+- OpenCV SFace template extraction and 1:1 cosine comparison;
+- pinned model versions checked by SHA-256 before use;
+- baseline cosine threshold `0.363`, configurable;
+- basic quality checks for exactly one face, face size, detector confidence, blur, and brightness;
+- versioned enrollment templates stored as derived embeddings/fingerprints/model metadata;
+- raw enrollment/verification images processed in request memory and **not persisted** in canonical Supabase tables/audit/device payloads.
+
+The baseline threshold is not a claim of institution/camera-specific calibration.
+
+### Explicit V1 biometric limitation
+
+**Liveness / presentation-attack detection is not implemented.**
+
+V1 must not be described as resistant to printed-photo or replay-video spoofing. `livenessChecked=false` is deliberate. High-assurance deployment requires a separately evaluated anti-spoof/liveness layer and consented threshold calibration for the real camera/environment/population.
 
 ---
 
@@ -85,7 +101,7 @@ The product does not require unrestricted 1:N identification of everyone in fron
 
 Attendance is **session-based**, not a single daily boolean.
 
-Required initial session families:
+Initial session families:
 
 - School Arrival / Masuk
 - School Departure / Pulang
@@ -96,98 +112,67 @@ Required initial session families:
 - School Activity / Kegiatan Sekolah
 - Custom future session
 
-A session has its own:
+A session can define date/recurrence, open/close window, optional late threshold, participants, verification requirements, attendance mode, and relationship to the normal calendar.
 
-- date or recurrence rule;
-- opening/closing time window;
-- optional late threshold;
-- eligible participant set;
-- verification requirements;
-- attendance behavior;
-- relationship to normal calendar (normal/additive/override/cancelled).
+### Dhuha
 
-### Dhuha rule
+Dhuha does not have to involve the whole school at once. Different grades/classes may be scheduled on different days. Example mappings are configuration/demo data and must never be hard-coded.
 
-Dhuha is not necessarily scheduled for the whole school at once. The schedule can target different grades/classes on different days.
-
-Example only — never hard-code:
-
-- Tuesday → Grade 10
-- Wednesday → Grade 11
-- Thursday → Grade 12
-
-A student who is not targeted by today's Dhuha session is **not absent** from Dhuha.
+A student outside today's target is **not absent** from that Dhuha occurrence.
 
 ### Dzuhur / Ashar
 
-These can be scheduled as regular sessions on eligible school days, with configurable target groups and time windows.
+These are configurable regular sessions with target groups and time windows.
 
 ### Special dates and activities
 
-The schedule engine must support one-off or recurring school activities such as:
+Support one-off or recurring activities such as:
 
-- 17 August ceremony where students may be required to check in and check out even if the date is outside the ordinary school pattern;
-- Friday cleaning (`Jumat Bersih`);
-- future ceremonies, religious activities, class meetings, competitions, or other custom events.
+- 17 August ceremony requiring arrival/departure even outside ordinary schedule;
+- Jumat Bersih;
+- future ceremonies, religious activities, class meetings, competitions, and custom events.
 
-An event can target all students, a grade, multiple classes, one class, or selected students. Broader selectors such as department/major may be supported by the domain model.
+Targets may include all students, grade, class, department/major, or selected students.
 
 ---
 
 ## 6. School-day attendance status ownership
 
-The system may automatically derive operational facts such as:
+The system may automatically derive operational facts:
 
 - valid/on-time attendance;
 - late attendance;
-- no valid attendance recorded for a required school arrival session.
+- no valid attendance for a required school-arrival session.
 
-The system must **not automatically decide** that a student is Sakit, Izin, or Alpa.
+The system must **not automatically decide Sakit, Izin, or Alpa**.
 
-For a school day where no valid arrival attendance exists, the record remains pending/unconfirmed until the homeroom teacher confirms one of:
+When no valid required arrival exists, status remains pending until an authorized Homeroom Teacher confirms:
 
-- **Sakit** — Sick
-- **Izin** — Permission / Excused
-- **Alpa** — Unexcused absence
+- Sakit
+- Izin
+- Alpa
 
-The system should preserve who confirmed the status, when, and any optional note/evidence if that feature is enabled.
+Valid machine arrival attendance cannot be converted to Sakit/Izin/Alpa through the normal homeroom workflow. Confirmation actor/time/note/history must remain auditable.
 
 ---
 
-## 7. Raw events vs attendance records
+## 7. Raw events vs canonical attendance
 
-The system must preserve the distinction between:
+Keep raw/audit events separate from canonical attendance records.
 
-### Raw / audit events
+Raw examples: RFID scan, unknown UID, face attempt, mismatch, duplicate, outside session, device heartbeat/error.
 
-Examples:
+Canonical examples: accepted school arrival, attended Dhuha occurrence, pending required school day.
 
-- RFID scanned;
-- unknown UID;
-- face capture attempted;
-- face verified;
-- face mismatch;
-- duplicate scan;
-- outside session;
-- device heartbeat/status.
-
-### Derived attendance records
-
-Examples:
-
-- student X attended school arrival at 06:48 and was on time;
-- student Y attended Dhuha session Z;
-- student Z has no valid school arrival and requires homeroom confirmation.
-
-Reports are built from canonical attendance records and their confirmed statuses, while raw events remain available for audit/troubleshooting.
+Reports use canonical records + authorized confirmations; raw events remain audit/troubleshooting evidence.
 
 ---
 
 ## 8. Reporting truth
 
-Reports must be generated from system data, not manually maintained duplicate totals.
+Reports are generated from system data, never manually maintained duplicate totals.
 
-Minimum reporting periods:
+Required periods:
 
 - Daily
 - Weekly
@@ -196,16 +181,18 @@ Minimum reporting periods:
 - Academic year / annual
 - Custom date range
 
-Minimum report dimensions:
+Dimensions:
 
 - per student;
 - per class;
-- school attendance status;
+- formal school attendance;
 - lateness;
-- prayer/activity-session participation;
+- prayer/activity participation;
 - special-event participation.
 
-Exports are expected for practical school use. Excel/CSV and printable/PDF reporting are planned; exact formats are defined during implementation.
+V1 export paths are Excel-compatible CSV and printable/Save-as-PDF report view.
+
+Prayer/activity participation percentage remains intentionally unresolved until the Sakit/Izin denominator policy is decided; do not invent that percentage.
 
 ---
 
@@ -213,110 +200,112 @@ Exports are expected for practical school use. Excel/CSV and printable/PDF repor
 
 ### System Admin
 
-Can manage institution configuration, academic calendar, users/roles, classes, students, RFID registrations, face enrollment status, attendance sessions, devices, and global reports.
+Manages institution configuration, staff roles, academic structure, students, RFID, face enrollment, schedules, devices, and reports.
 
 ### Homeroom Teacher / Wali Kelas
 
-Can access the class(es) assigned to them, review attendance, confirm Sakit/Izin/Alpa for school-day non-attendance, inspect relevant session participation, and generate class reports.
+Accesses assigned class(es), reviews attendance, confirms Sakit/Izin/Alpa for valid pending school-day cases, inspects session participation, and generates reports.
 
-### Operator (optional but supported)
+### Operator
 
-Can monitor terminals/device health and operational attendance flows without receiving unrestricted administrative access.
+Monitors device/terminal health and operational state without unrestricted student/schedule/staff administration.
 
 ### Student login
 
-Not required for the initial MVP. Student-facing access may be added later without changing the core attendance model.
+Not required for V1.
 
 ---
 
 ## 10. Hardware/simulator parity
 
-The simulator exists because physical hardware is currently optional, not because the backend is fake.
+Simulator exists because physical hardware is optional during rebuild, not because the backend is fake.
 
-Both real hardware and the simulator must:
+Real device and simulator adapters must reach canonical attendance rules. Hardware clients cannot become the source of policy/student/session truth.
 
-- identify themselves as a device/client;
-- send events through the same versioned device contract;
-- receive the same canonical domain outcomes;
-- never contain authoritative attendance policy only inside the client.
-
-A later physical integration should require adding/configuring a device adapter, not rewriting the web application or attendance engine.
+A later Arduino/ESP integration should require device adapter/bridge/firmware work, not rewriting attendance business logic.
 
 ---
 
 ## 11. Architecture boundaries
 
-The system must maintain these conceptual layers:
+1. **Device Layer** — RFID, camera, LED, buzzer, Arduino/ESP or simulator.
+2. **Device API/Gateway** — device auth, replay/time validation, event normalization.
+3. **Face Verification Service** — replaceable 1:1 biometric inference.
+4. **Attendance Domain Engine** — canonical acceptance/rejection/lateness/session rules.
+5. **Persistence** — configuration, raw events, verification, canonical attendance, audit.
+6. **Web Application** — admin, homeroom, reports, device management, enrollment/simulator controls.
+7. **Reporting Engine** — derived summaries/exports.
 
-1. **Device Layer** — RFID, camera, LEDs, buzzer, Arduino/ESP32 or simulator.
-2. **Device Gateway / Device API** — validates device identity and normalizes device events.
-3. **Face Verification Service** — performs the 1:1 verification behind a replaceable interface.
-4. **Attendance Domain Engine** — determines eligibility, session, lateness, duplicates, acceptance/rejection, pending absence confirmation.
-5. **Persistence** — canonical records, raw events, configuration, audit metadata.
-6. **Web Application** — admin, homeroom, reporting, device monitoring, simulator controls.
-7. **Reporting Engine** — derives summaries/exports from canonical records.
-
-The frontend must not become the source of truth for attendance decisions.
+Frontend/browser/device clients never become authoritative attendance decision makers.
 
 ---
 
 ## 12. Security and privacy truth
 
-- Biometric data must be treated as sensitive.
-- Prefer storing derived face templates/embeddings rather than unnecessary raw face imagery.
-- Any stored verification snapshots require an explicit retention policy.
-- Demo biometric data should be temporary/ephemeral by default.
-- Device endpoints require authentication and replay/duplicate protection appropriate to the selected protocol.
-- Role-based authorization must constrain teacher access to assigned classes.
-- Security/audit events must not be editable as ordinary attendance data.
+- Biometric data is sensitive.
+- V1 stores derived embeddings/templates and metadata, not raw enrollment/verification photos.
+- Raw face JPEG/base64 must not be persisted in Supabase canonical/audit/device payloads.
+- Biometric embeddings are server-side and must not be exposed as normal browser data.
+- Face-service requests require a private server-to-server credential.
+- Device endpoints require independent device authentication and replay/idempotency protection.
+- Device plaintext secrets are not stored in the database; only a cryptographic hash is stored.
+- Staff roles/class scope come from canonical application data, not editable Auth metadata.
+- Homeroom access is constrained to assigned classes unless System Admin authority applies.
+- Security/audit events are not editable as ordinary attendance records.
+- Public browser table access remains default-deny in the V1 server-authoritative architecture.
+- Real-school use requires privacy/consent/legal review before enrolling actual student biometrics.
 
-See `docs/06-SECURITY-PRIVACY.md`.
+See `docs/06-SECURITY-PRIVACY.md` and ADR-019.
 
 ---
 
-## 13. Explicit non-goals for the first release
+## 13. Explicit non-goals for V1
 
-Unless deliberately added later, the first release does not need:
+V1 does not claim or require:
 
 - payroll integration;
-- parent billing;
-- full LMS functionality;
-- grading/academic marks;
-- unrestricted facial surveillance or school-wide 1:N face search;
-- dependence on owning physical Arduino/ESP32 hardware to run the demo.
+- billing;
+- full LMS/grading;
+- unrestricted facial surveillance/1:N identification;
+- liveness/anti-spoof resistance;
+- possession of physical Arduino/ESP hardware to run software tests;
+- final production deployment hardening for a real institution.
 
 ---
 
 ## 14. Open decisions — do not silently assume
 
-These remain intentionally unresolved until they are discussed and recorded:
+These remain unresolved unless a later ADR explicitly decides them:
 
-1. Final product/brand name and UI visual direction.
-2. Exact school arrival, lateness, and departure time rules.
-3. Exact regular Dzuhur/Ashar schedule.
-4. Exact Dhuha target schedule for the demo dataset.
-5. Whether school departure is mandatory for every ordinary day and how missing departure affects final daily attendance.
-6. Whether prayer/activity participation denominators exclude students whose school-day status is confirmed Sakit/Izin.
-7. Whether homeroom teachers can attach proof documents for Sakit/Izin and whether attachments are required.
-8. Raw verification snapshot retention policy.
-9. Exact face verification model/library/service and threshold calibration.
-10. Exact production hosting architecture and cost constraints.
-11. Exact export templates required to resemble school administrative forms.
-12. Whether special events can independently use check-in only, check-out only, single-presence, or paired check-in/check-out modes — architecture should support all, final UI to be decided.
-
-When one of these becomes decided, update this document and add an ADR entry in `docs/09-DECISION-LOG.md`.
+1. Final product/brand name and visual direction.
+2. Exact production school arrival/lateness/departure time policy.
+3. Exact production Dzuhur/Ashar schedule.
+4. Exact production/demo Dhuha targeting beyond configurable fixtures.
+5. Missing-departure effect on school-day status/reporting.
+6. Whether prayer/activity denominator excludes Sakit/Izin school days.
+7. Evidence attachment requirements for Sakit/Izin.
+8. Manual correction approval model beyond the existing guarded homeroom absence confirmation.
+9. School/camera/population-specific biometric threshold calibration.
+10. Liveness/presentation-attack implementation.
+11. Production hosting/edge protection/monitoring/backups/cost constraints.
+12. Final administrative report template if native XLSX/server PDF is required beyond current CSV + print-PDF.
+13. Final priority/routing policy for truly overlapping active sessions; V1 fails closed.
 
 ---
 
-## 15. Definition of product success
+## 15. Definition of V1 success
 
-The rebuild is successful when:
+V1 is successful when:
 
-1. a recruiter can use a hardware simulator to experience the same core flow as a real terminal;
-2. a real hardware adapter can later submit RFID/camera events without changing attendance business rules;
+1. recruiter can exercise canonical behavior through simulator;
+2. hardware-compatible Device API can receive RFID + camera flow without business-rule rewrite;
 3. face mismatch cannot create valid attendance;
-4. targeted sessions do not mark non-target students absent;
-5. special school events can generate attendance requirements outside normal schedules;
-6. homeroom teachers can confirm Sakit/Izin/Alpa without manually rebuilding attendance totals;
-7. weekly through annual reports are reproducible directly from canonical records;
-8. the system remains auditable, testable, and secure enough to demonstrate professional engineering practice.
+4. correct face can create exactly one canonical attendance;
+5. retry cannot duplicate attendance;
+6. targeted sessions do not mark non-target students absent;
+7. special events can create attendance obligations outside normal schedules;
+8. homeroom teachers can confirm Sakit/Izin/Alpa without manually rebuilding totals;
+9. weekly through annual reports regenerate from canonical records;
+10. system remains auditable/testable with explicit limitations rather than fake security claims.
+
+Automated/unit/build/model/database smoke evidence can establish software readiness. Real camera/login/device E2E is performed by the user with their own credentials/face/device environment using `docs/13-V1-TESTING-RUNBOOK.md`.
