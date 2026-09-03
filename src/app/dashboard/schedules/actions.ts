@@ -15,6 +15,7 @@ import {
 import { requireAuthorizedUser } from "../../../lib/auth/require-authorized-user";
 
 const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
+const optionalUuid = z.string().uuid().optional().or(z.literal(""));
 
 const createSchema = z.object({
   templateId: z.string().uuid(),
@@ -31,7 +32,9 @@ const createSchema = z.object({
     "CLASSES",
     "DEPARTMENTS",
   ]),
-  targetId: z.string().uuid().optional().or(z.literal("")),
+  targetClassId: optionalUuid,
+  targetGradeId: optionalUuid,
+  targetDepartmentId: optionalUuid,
   scheduleRelationship: z.enum([
     "NORMAL",
     "ADDITIVE",
@@ -62,6 +65,7 @@ function mapScheduleError(error: unknown) {
   if (message.includes("TARGET_ID_REQUIRED") || message.includes("TARGET_")) {
     return "target";
   }
+  if (message.includes("INVALID_TARGET_")) return "target";
   if (message.includes("UNSUPPORTED_RECURRENCE_RULE")) return "recurrence";
   if (message.includes("LATE_NOT_SUPPORTED_BY_TEMPLATE")) return "late-template";
   if (message.includes("INVALID_LATE_THRESHOLD")) return "late-window";
@@ -77,6 +81,19 @@ function mapScheduleError(error: unknown) {
   return "save-failed";
 }
 
+function targetIdFor(input: z.infer<typeof createSchema>) {
+  switch (input.targetType) {
+    case "ALL_STUDENTS":
+      return undefined;
+    case "CLASSES":
+      return input.targetClassId || undefined;
+    case "GRADE_LEVELS":
+      return input.targetGradeId || undefined;
+    case "DEPARTMENTS":
+      return input.targetDepartmentId || undefined;
+  }
+}
+
 export async function createScheduleRuleAction(formData: FormData) {
   const { userId } = await requireAuthorizedUser(["SYSTEM_ADMIN"]);
   const parsed = createSchema.safeParse({
@@ -89,7 +106,9 @@ export async function createScheduleRuleAction(formData: FormData) {
     lateAfterAt: formData.get("lateAfterAt") || "",
     closesAt: formData.get("closesAt"),
     targetType: formData.get("targetType"),
-    targetId: formData.get("targetId") || "",
+    targetClassId: formData.get("targetClassId") || "",
+    targetGradeId: formData.get("targetGradeId") || "",
+    targetDepartmentId: formData.get("targetDepartmentId") || "",
     scheduleRelationship: formData.get("scheduleRelationship"),
     note: formData.get("note") || undefined,
   });
@@ -101,7 +120,9 @@ export async function createScheduleRuleAction(formData: FormData) {
   const days = formData
     .getAll("days")
     .filter((value): value is string => typeof value === "string")
-    .filter((value) => scheduleDayCodes.includes(value as (typeof scheduleDayCodes)[number]));
+    .filter((value) =>
+      scheduleDayCodes.includes(value as (typeof scheduleDayCodes)[number]),
+    );
 
   let errorCode: string | undefined;
 
@@ -112,7 +133,7 @@ export async function createScheduleRuleAction(formData: FormData) {
     });
     const targetSelector = buildScheduleTargetSelector({
       targetType: parsed.data.targetType,
-      targetId: parsed.data.targetId || undefined,
+      targetId: targetIdFor(parsed.data),
     });
 
     await createAttendanceScheduleRule({
