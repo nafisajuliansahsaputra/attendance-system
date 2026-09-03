@@ -12,7 +12,7 @@ describe("processResolvedAttendanceAttempt", () => {
       verificationAttemptId: "verification-1",
     });
 
-    const attempt = buildDemoAttempt("success", "request-success");
+    const attempt = buildDemoAttempt("verified", "request-success");
     const result = await processResolvedAttendanceAttempt(attempt, { persist });
 
     expect(result.outcome.code).toBe("ACCEPTED_ON_TIME");
