@@ -19,7 +19,8 @@ The first implementation slice establishes the engineering boundary before datab
 - `/terminal` recruiter simulator;
 - `/api/demo/attempt` demo adapter that calls the canonical engine rather than declaring results in the UI;
 - `/api/health` health endpoint;
-- unit tests and GitHub Actions CI.
+- unit tests and GitHub Actions CI;
+- pinned direct dependencies plus committed npm lockfile for reproducible installs.
 
 The demo currently uses deterministic adapter fixtures for card/session/face resolution. It intentionally does **not** claim real biometric recognition or database persistence yet.
 
@@ -78,18 +79,27 @@ flowchart LR
 - **Future Arduino path:** Python serial/USB bridge → versioned Device API
 - **Future ESP32 path:** HTTPS → versioned Device API
 
-Direct dependency versions are pinned in `package.json` and upgraded deliberately.
+Direct dependency versions are pinned in `package.json` and locked in `package-lock.json`.
 
 ## Local development
 
 ```bash
-npm install
+npm ci
 npm run dev
 ```
 
 Then open `/terminal` to run the current recruiter simulator.
 
-Once the generated lockfile is committed, CI/local clean installs should use `npm ci`.
+## Quality gate
+
+```bash
+npm run lint
+npm run typecheck
+npm run test
+npm run build
+```
+
+The same checks run in GitHub Actions for pushes to `main` and pull requests.
 
 ## Project rule
 

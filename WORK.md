@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-09-03  
 **Current phase:** Implementation foundation / Phase 1  
-**Coding status:** Started
+**Coding status:** Started; first foundation quality gate verified
 
 This file is the handoff point for the next working session. Read it after `AGENTS.md` and `docs/00-SOURCE-OF-TRUTH.md`.
 
@@ -28,6 +28,7 @@ Product facts remain governed by `docs/00-SOURCE-OF-TRUTH.md`. Technical impleme
 - [x] Tailwind CSS setup.
 - [x] ESLint + TypeScript + Vitest scripts.
 - [x] CI workflow for lint, typecheck, tests, and production build.
+- [x] Direct dependencies pinned and `package-lock.json` committed for reproducible `npm ci` installs.
 - [x] `/api/health` endpoint.
 - [x] Pure canonical attendance decision engine.
 - [x] Explicit hardware feedback mapping.
@@ -38,6 +39,7 @@ Product facts remain governed by `docs/00-SOURCE-OF-TRUTH.md`. Technical impleme
 - [x] Browser-generated buzzer feedback: one beep on success, rapid repeated beeps on face mismatch.
 - [x] Dedicated database workspace documentation.
 - [x] ADR-010/013/014/015 accepted.
+- [x] Foundation verified by GitHub Actions: install, lint, typecheck, unit tests, and production build all pass after dependency compatibility correction.
 
 ---
 
@@ -72,16 +74,15 @@ Once the organization is selected:
 
 Recommended order:
 
-1. Verify the foundation commit in GitHub CI and fix any scaffold/toolchain issues.
-2. Create/connect the dedicated Supabase project after explicit organization selection.
-3. Implement academic structure schema: institution, academic year, grades/classes, students, enrollments.
-4. Implement RFID credential registry.
-5. Implement session definition + occurrence + participant targeting schema.
-6. Build deterministic schedule resolver with tests.
-7. Add raw event persistence and canonical attendance persistence transaction boundary.
-8. Replace demo fixture card/session resolution with repository/service interfaces usable by both demo and device adapters.
-9. Add authentication/RBAC for Admin and Wali Kelas.
-10. Continue toward real face enrollment/verification only after biometric decisions are accepted.
+1. Create/connect the dedicated Supabase project after explicit organization selection.
+2. Implement academic structure schema: institution, academic year, grades/classes, students, enrollments.
+3. Implement RFID credential registry.
+4. Implement session definition + occurrence + participant targeting schema.
+5. Build deterministic schedule resolver with tests.
+6. Add raw event persistence and canonical attendance persistence transaction boundary.
+7. Replace demo fixture card/session resolution with repository/service interfaces usable by both demo and device adapters.
+8. Add authentication/RBAC for Admin and Wali Kelas.
+9. Continue toward real face enrollment/verification only after biometric decisions are accepted.
 
 ---
 
