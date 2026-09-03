@@ -183,22 +183,32 @@ Report totals can be reconciled and regenerated after corrections.
 
 ---
 
-## ADR-010 — Proposed application stack
+## ADR-010 — Application stack
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-09-03
 
-### Proposal
+### Context
 
-- Next.js + TypeScript web application;
-- PostgreSQL, with Supabase as preferred managed candidate;
-- separate Python/FastAPI face-verification service;
+Implementation is starting and the stack must be fixed enough to prevent framework drift.
+
+### Decision
+
+- Next.js App Router + TypeScript for the main full-stack web application;
+- React for interactive UI;
+- Tailwind CSS for styling;
+- PostgreSQL on Supabase for the managed data platform;
+- separate Python/FastAPI boundary for future face verification;
 - Python serial bridge for future USB Arduino hardware;
 - direct HTTPS option for future ESP32-class hardware.
 
-### Why not Accepted yet
+The initial dependency baseline is Next.js 16.3.x, React 19.2.x, TypeScript 6.x, and Tailwind CSS 4.3.x. Exact direct versions are pinned in `package.json` and upgraded deliberately.
 
-Exact implementation choices should be locked immediately before scaffolding so versions/deployment constraints can be checked at that time.
+### Consequences
+
+- the main app does not depend on PHP/Laravel;
+- biometric implementation remains replaceable;
+- physical hardware is not required to develop the web system.
 
 ---
 
@@ -232,11 +242,70 @@ No business rule depends on developer laptop/server timezone.
 
 ---
 
+## ADR-013 — Attendance System receives a dedicated Supabase project
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Context
+
+Another portfolio application (Spall Spill) also uses Supabase. Attendance data, Auth, keys, storage, and schema must not be mixed with another product.
+
+### Decision
+
+Create and use a separate Supabase project exclusively for Attendance System.
+
+### Consequences
+
+- no shared database tables with Spall Spill;
+- no shared Auth tenant or Storage buckets;
+- separate environment variables and credentials;
+- project creation waits for explicit Supabase organization selection.
+
+---
+
+## ADR-014 — Start app-first, preserve service boundaries
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Context
+
+A large monorepo before there are multiple deployable services would add ceremony without product value.
+
+### Decision
+
+Start the Next.js application at the repository root. Keep domain logic and contracts in explicit `src/domain` and `src/contracts` boundaries. Add `services/face-service`, device bridges, and firmware folders when those deployable units actually begin.
+
+### Consequences
+
+- faster initial development;
+- no premature workspace tooling;
+- architecture can evolve into multiple services without rewriting the attendance engine.
+
+---
+
+## ADR-015 — Simulator exercises canonical decision logic
+
+**Status:** Accepted  
+**Date:** 2026-09-03
+
+### Decision
+
+The recruiter simulator may provide deterministic fixture resolutions for RFID/session/face inputs, but the resulting attendance decision must pass through the same canonical domain engine intended for real device adapters.
+
+### Consequences
+
+- UI scenario buttons cannot directly declare attendance success;
+- face mismatch, unknown card, duplicate, not-eligible, and timing rules are regression-testable independently of the UI;
+- later database/device adapters replace fixture resolution, not the decision engine.
+
+---
+
 # Proposed / pending decisions
 
 Create a new ADR when each is resolved:
 
-- repository layout (monorepo or simplified app-first);
 - final brand/UI direction;
 - exact attendance cutoff values;
 - exact demo Dhuha/Dzuhur/Ashar schedules;
