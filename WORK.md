@@ -1,8 +1,8 @@
 # Current Work State
 
 **Last updated:** 2026-09-03  
-**Current phase:** Database-backed attendance foundation / Phase 2  
-**Coding status:** Active; web, database schema, and persistence contract verified
+**Current phase:** Database-backed attendance resolution / Phase 2  
+**Coding status:** Active; seed, context resolution, persistence, and CI verified
 
 This file is the handoff point for the next working session. Read it after `AGENTS.md` and `docs/00-SOURCE-OF-TRUTH.md`.
 
@@ -19,6 +19,7 @@ This file is the handoff point for the next working session. Read it after `AGEN
 - Future face verification stays behind a Python/FastAPI boundary.
 - Future Arduino USB uses an adapter/bridge; network-capable hardware can use the versioned HTTPS Device API.
 - Simulator and real hardware must reach the same canonical attendance engine.
+- Overlapping unresolved sessions fail closed; no arbitrary first-row routing.
 
 ---
 
@@ -40,8 +41,12 @@ This file is the handoff point for the next working session. Read it after `AGEN
 - [x] Server-only Supabase configuration contract.
 - [x] Privileged Supabase RPC transport using environment-only `SUPABASE_SECRET_KEY`.
 - [x] Supabase attendance persistence adapter.
-- [x] Persistence payload mapping tests.
-- [x] Latest CI slice passes install, lint, typecheck, unit tests, and production build.
+- [x] Database context resolver interface.
+- [x] Supabase RFID/student/session/eligibility context adapter.
+- [x] Context-to-canonical-attempt mapper.
+- [x] Fail-closed multiple-session selection guard.
+- [x] Context/persistence mapping tests.
+- [x] Latest CI passes install, lint, typecheck, unit tests, and production build.
 
 ---
 
@@ -62,50 +67,107 @@ Security/data rules already implemented:
 - [x] Sakit/Izin/Alpa confirmation history separated from automated facts;
 - [x] RLS enabled on every public table;
 - [x] current browser roles default-deny (`anon`/`authenticated` table privileges revoked);
+- [x] server RPCs executable only by `service_role`;
 - [x] updated-at function search path hardened;
 - [x] foreign-key indexes added;
 - [x] no privileged key committed to GitHub;
-- [x] security advisor has no warning-level finding introduced by the persistence RPC.
+- [x] security advisor shows no warning-level issue introduced by current RPCs.
 
-Live migration history:
+Live migration history now includes:
 
 1. `initial_attendance_domain`
 2. `harden_updated_at_function`
 3. `add_foreign_key_indexes`
 4. `persist_resolved_attendance_attempt_rpc`
+5. `resolve_attendance_context_rpc`
 
-The fourth migration adds an atomic, idempotent `persist_resolved_attendance_attempt` RPC. It records the final device event and verification attempt, and creates canonical attendance only when the application/domain outcome was accepted. It validates basic cross-institution/device integrity but does not independently decide whether attendance should be accepted.
+### Atomic persistence RPC
 
-Repository migrations mirror the live schema under `supabase/migrations/`.
+`persist_resolved_attendance_attempt` records the final device event and verification attempt, and creates canonical attendance only when the application/domain outcome was accepted. It is idempotent for request replay.
+
+Verified as `service_role` inside a transaction:
+
+- two calls with the same `request_id` → one device event;
+- one verification attempt;
+- one attendance record;
+- replay returns the same stored identities;
+- test transaction rolled back, leaving no leaked test event.
+
+### Database context resolver RPC
+
+`resolve_attendance_context` resolves:
+
+- normalized RFID UID;
+- registered student identity;
+- historical active enrollment/class for the institution-local school date;
+- active face-profile reference;
+- session candidates whose actual occurrence windows contain the scan time;
+- participant eligibility;
+- duplicate attendance state.
+
+Verified seed cases:
+
+- eligible class-X arrival;
+- class-X-only Dhuha rejects a class-XI student as not eligible;
+- unknown RFID remains unregistered;
+- after an accepted record exists, a subsequent context resolution reports `duplicate = true`.
 
 ---
 
-## 4. Important truth about current runtime
+## 4. Reproducible fictional demo seed
 
-The recruiter simulator still uses the **ephemeral adapter by default**. This is intentional: fake demo IDs are not inserted into the production-shaped database.
+`supabase/seed.sql` now contains synthetic portfolio data only:
 
-A real Supabase persistence adapter now exists, but it only becomes active when a real database-backed resolver provides actual institution/device/student/session UUIDs and the backend runtime has `SUPABASE_URL` + `SUPABASE_SECRET_KEY` configured securely.
+- fictional institution `SMK Cakrawala Digital (Fiktif)`;
+- academic year 2026/2027;
+- grade X and XI;
+- fictional RPL classes;
+- four fictional students;
+- four synthetic RFID UIDs;
+- demo-only face profile references (no real biometric image/template);
+- arrival, class-X Dhuha, and 17 August ceremony fixtures;
+- materialized session participants;
+- one active simulator device.
 
-Real biometric recognition is also not implemented yet. Demo face results are deterministic fixtures that still pass through the canonical attendance engine.
+Current seed verification:
+
+- 1 institution;
+- 4 students;
+- 4 active RFID credentials;
+- 3 session occurrences;
+- 10 participant rows;
+- 0 leaked end-to-end test events.
+
+The schedule values are explicitly fixture data, not claims about a real school.
 
 ---
 
-## 5. Next implementation slice
+## 5. Important truth about current runtime
 
-1. Add a reproducible fictional demo seed dataset.
-2. Implement database-backed RFID lookup/resolution.
-3. Implement active-session resolution from occurrences and participant eligibility.
-4. Add resolver tests for normal arrival, Dhuha targeting, special events, no-session, and non-eligible students.
-5. Register a real simulator device row and switch an isolated database demo mode to real UUID-backed fixtures.
-6. Verify the atomic persistence RPC end-to-end against seeded data, including idempotent replay.
-7. Add Supabase Auth + RBAC for System Admin and Wali Kelas.
-8. Implement school-day pending confirmation for Sakit/Izin/Alpa.
-9. Build the first wali-kelas attendance/reconciliation view.
-10. Then continue to reporting and real biometric integration.
+The public recruiter terminal still uses the **ephemeral adapter by default**. This is intentional.
+
+The real database resolver and persistence adapter exist, but public DB-mode is not enabled yet because recruiter clicks would otherwise mutate canonical demo attendance and quickly turn successful scenarios into duplicates. Demo isolation/reset semantics must be designed first.
+
+Real biometric recognition is also not implemented yet. Demo face results remain deterministic fixtures, while database face-profile rows contain only synthetic references.
 
 ---
 
-## 6. Still-open product decisions
+## 6. Next implementation slice
+
+1. Define demo-vs-production data isolation/reset strategy.
+2. Build a raw scan orchestration service: device/RFID context → face verifier boundary → canonical engine → persistence.
+3. Add a deterministic face-verifier adapter for the database-backed sandbox only.
+4. Add an isolated DB-backed simulator path without exposing the Supabase secret or mutating production-like data indefinitely.
+5. Add Supabase Auth + RBAC for System Admin and Wali Kelas.
+6. Implement school-day pending confirmation for Sakit/Izin/Alpa.
+7. Build the first wali-kelas attendance/reconciliation view.
+8. Add schedule-occurrence materialization from configured rules rather than relying only on pre-seeded occurrences.
+9. Continue to reports/exports.
+10. Continue to real biometric integration only after model/threshold/retention decisions are locked.
+
+---
+
+## 7. Still-open product decisions
 
 - [ ] Final brand/product name and UI visual system.
 - [ ] UI language strategy.
@@ -120,10 +182,10 @@ Real biometric recognition is also not implemented yet. Demo face results are de
 - [ ] Biometric raw-image retention.
 - [ ] Demo isolation/deployment topology.
 - [ ] Report export templates/libraries.
-- [ ] Overlapping active-session routing policy.
+- [ ] Final overlapping-session priority/device routing policy.
 
 ---
 
-## 7. Build guardrail
+## 8. Build guardrail
 
-Do not make the dashboard, simulator, hardware client, database trigger, or persistence RPC the independent source of attendance truth. Acceptance/rejection remains an application-domain decision. Persistence records that decision safely and future physical hardware must be able to use the same path through an adapter.
+Do not make the dashboard, simulator, hardware client, database trigger, resolver RPC, or persistence RPC the independent source of attendance truth. Resolution gathers trusted context; the application-domain engine decides acceptance/rejection; persistence records that decision safely. Future physical hardware must use the same path through an adapter.
