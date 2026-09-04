@@ -13,8 +13,8 @@ export default async function UnauthorizedPage({ searchParams }: UnauthorizedPag
       : "Akun Anda tidak memiliki hak akses untuk membuka halaman tersebut.";
 
   return (
-    <main className="mx-auto flex min-h-screen w-full items-center px-4 py-12 sm:px-6 lg:px-8">
-      <section className="mx-auto w-full max-w-2xl rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm sm:p-10">
+    <main className="mx-auto flex min-h-screen max-w-2xl items-center px-6 py-12">
+      <section className="w-full rounded-[2rem] border border-[var(--border)] bg-[var(--surface)] p-8 shadow-sm sm:p-10">
         <p className="text-xs font-semibold uppercase tracking-[0.3em] text-[var(--danger)]">
           Akses ditolak
         </p>
