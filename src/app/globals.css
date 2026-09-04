@@ -166,6 +166,58 @@ a:focus-visible {
   }
 }
 
+/*
+ * Recruiter terminal layout.
+ * The former camera/status split kept a fixed 320px status rail next to the
+ * video and forced a 720px minimum height. On narrower desktop windows this
+ * squeezed the camera, clipped the left side and left a tall empty column.
+ * Keep the camera full-width and place the status cards in a compact,
+ * responsive grid underneath instead.
+ */
+.terminal-page-shell section > header + div {
+  display: block !important;
+  min-height: 0 !important;
+  min-width: 0;
+}
+
+.terminal-page-shell section > header + div > div:first-child {
+  min-width: 0;
+  border-right: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+
+.terminal-page-shell section > header + div > aside {
+  min-width: 0;
+  padding: 20px !important;
+}
+
+.terminal-page-shell section > header + div > aside > div.mt-5.space-y-3 {
+  display: grid !important;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.terminal-page-shell section > header + div > aside > div.mt-5.space-y-3 > * {
+  margin-block-start: 0 !important;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .terminal-page-shell section > header + div > aside > div.mt-5.space-y-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1100px) {
+  .terminal-page-shell section > header + div > aside {
+    padding: 24px !important;
+  }
+
+  .terminal-page-shell section > header + div > aside > div.mt-5.space-y-3 {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
 /* Institutional portal shell ------------------------------------------------ */
 .school-portal-shell {
   color: var(--school-ink);
