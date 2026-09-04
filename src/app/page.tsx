@@ -21,10 +21,10 @@ const foundations = [
 ];
 
 const proofPoints = [
-  "Bisa diuji langsung menggunakan kamera perangkat",
-  "Kecocokan wajah diputuskan oleh model verifikasi",
-  "Alur RFID dan wajah diproses dalam satu transaksi",
-  "Memiliki perlindungan absensi ganda dan pengulangan transaksi",
+  "Simulasi dapat dicoba langsung tanpa akun petugas",
+  "Kecocokan wajah diputuskan oleh mesin verifikasi",
+  "RFID, wajah, jadwal, dan duplikasi diperiksa berurutan",
+  "Hasil terminal mengikuti pola LED dan buzzer perangkat sekolah",
 ];
 
 export default function HomePage() {
@@ -50,10 +50,10 @@ export default function HomePage() {
               Masuk sebagai petugas
             </Link>
             <Link
-              href="/terminal"
+              href="/terminal/lab"
               className="rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--success-strong)]"
             >
-              Coba terminal absensi
+              Coba simulasi absensi
             </Link>
           </div>
         </header>
@@ -71,24 +71,27 @@ export default function HomePage() {
 
             <p className="mt-7 max-w-2xl text-base leading-8 text-[var(--muted)] sm:text-lg">
               Sistem ini dirancang untuk kebutuhan absensi {SCHOOL.name}. Kartu RFID digunakan untuk mengenali siswa,
-              lalu kamera memastikan wajah yang melakukan absensi benar-benar sesuai dengan pemilik kartu sebelum
-              kehadiran dicatat.
+              lalu kamera memastikan wajah yang melakukan absensi sesuai dengan pemilik kartu sebelum kehadiran dicatat.
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
-                href="/terminal"
+                href="/terminal/lab"
                 className="rounded-2xl bg-[var(--success)] px-6 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:bg-[var(--success-strong)]"
               >
-                Uji dengan wajah Anda →
+                Jalankan simulasi absensi →
               </Link>
               <Link
-                href="/terminal/lab"
+                href="/terminal"
                 className="rounded-2xl border border-[var(--border)] bg-white px-6 py-3.5 text-sm font-semibold transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
               >
-                Buka simulasi perangkat
+                Uji verifikasi wajah langsung
               </Link>
             </div>
+
+            <p className="mt-3 max-w-2xl text-xs leading-5 text-[var(--muted)]">
+              Simulasi perangkat dapat dijalankan tanpa kamera. Mode verifikasi wajah langsung memerlukan layanan pengenal wajah yang aktif.
+            </p>
 
             <div className="mt-9 grid gap-3 sm:grid-cols-2">
               {proofPoints.map((item) => (
@@ -137,8 +140,7 @@ export default function HomePage() {
 
               <div className="border-t border-[var(--border)] bg-[var(--surface-soft)]/60 px-6 py-5">
                 <p className="text-xs leading-6 text-[var(--muted)]">
-                  Halaman uji menggunakan kamera browser dan layanan verifikasi wajah yang sama. Pengguna tidak memilih hasil;
-                  sistem sendiri yang menentukan apakah wajah cocok atau tidak cocok dengan pemilik kartu.
+                  Tersedia simulasi perangkat untuk menguji berbagai kondisi absensi tanpa data biometrik, serta mode kamera langsung untuk menunjukkan verifikasi wajah 1:1 ketika layanan pengenal wajah tersedia.
                 </p>
               </div>
             </div>
