@@ -12,6 +12,7 @@ import { requireAuthorizedUser } from "../../../lib/auth/require-authorized-user
 const sharedFilterSchema = {
   search: z.string().trim().max(100).optional(),
   classId: z.string().uuid().optional().or(z.literal("")),
+  page: z.string().regex(/^\d+$/).optional(),
 };
 
 const assignSchema = z.object({
@@ -32,6 +33,7 @@ const transferSchema = z.object({
 function targetUrl(input: {
   search?: string;
   classId?: string;
+  page?: string;
   saved?: string;
   error?: string;
 }) {
@@ -39,6 +41,7 @@ function targetUrl(input: {
 
   if (input.search) query.set("q", input.search);
   if (input.classId) query.set("class", input.classId);
+  if (input.page && input.page !== "1") query.set("page", input.page);
   if (input.saved) query.set("saved", input.saved);
   if (input.error) query.set("error", input.error);
 
@@ -55,6 +58,10 @@ function preservedFilters(formData: FormData) {
     classId:
       typeof formData.get("classId") === "string"
         ? String(formData.get("classId"))
+        : undefined,
+    page:
+      typeof formData.get("page") === "string"
+        ? String(formData.get("page"))
         : undefined,
   };
 }
@@ -95,6 +102,7 @@ export async function assignStudentRfidAction(formData: FormData) {
     note: formData.get("note") || undefined,
     search: formData.get("search") || undefined,
     classId: formData.get("classId") || "",
+    page: formData.get("page") || undefined,
   });
 
   if (!parsed.success) {
@@ -119,6 +127,7 @@ export async function assignStudentRfidAction(formData: FormData) {
       targetUrl({
         search: parsed.data.search,
         classId: parsed.data.classId || undefined,
+        page: parsed.data.page,
         error: assignmentError,
       }),
     );
@@ -129,6 +138,7 @@ export async function assignStudentRfidAction(formData: FormData) {
     targetUrl({
       search: parsed.data.search,
       classId: parsed.data.classId || undefined,
+      page: parsed.data.page,
       saved: "rfid",
     }),
   );
@@ -143,6 +153,7 @@ export async function transferStudentEnrollmentAction(formData: FormData) {
     note: formData.get("note") || undefined,
     search: formData.get("search") || undefined,
     classId: formData.get("classId") || "",
+    page: formData.get("page") || undefined,
   });
 
   if (!parsed.success) {
@@ -168,6 +179,7 @@ export async function transferStudentEnrollmentAction(formData: FormData) {
       targetUrl({
         search: parsed.data.search,
         classId: parsed.data.classId || undefined,
+        page: parsed.data.page,
         error: transferError,
       }),
     );
@@ -180,6 +192,7 @@ export async function transferStudentEnrollmentAction(formData: FormData) {
     targetUrl({
       search: parsed.data.search,
       classId: parsed.data.classId || undefined,
+      page: parsed.data.page,
       saved: "class",
     }),
   );
