@@ -1,21 +1,25 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f6faf7;
+  --background: #f4f7f5;
   --surface: #ffffff;
-  --surface-soft: #eef7f1;
-  --surface-strong: #e3f1e8;
-  --border: #d8e7de;
-  --border-strong: #b9d8c5;
+  --surface-soft: #f2f6f3;
+  --surface-strong: #e8f0eb;
+  --border: #dbe5df;
+  --border-strong: #c4d6cc;
   --text: #17352a;
-  --muted: #6d8278;
-  --success: #179451;
-  --success-strong: #0f7a40;
-  --success-soft: #e7f7ed;
-  --danger: #dc3d4f;
-  --danger-soft: #fff0f2;
-  --warning: #b7791f;
+  --muted: #667b71;
+  --success: #18734e;
+  --success-strong: #115b3d;
+  --success-soft: #e8f3ed;
+  --danger: #c93d4f;
+  --danger-soft: #fff1f3;
+  --warning: #a86f1d;
   --warning-soft: #fff8e8;
+  --school-deep: #12382b;
+  --school-deep-strong: #0c2b20;
+  --school-ink: #17352a;
+  --school-line: #dbe5df;
 }
 
 * {
@@ -24,17 +28,19 @@
 
 html {
   background: var(--background);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 88% 0%, rgba(23, 148, 81, 0.1), transparent 28rem),
-    radial-gradient(circle at 0% 30%, rgba(23, 148, 81, 0.045), transparent 24rem),
+    radial-gradient(circle at 90% -5%, rgba(24, 115, 78, 0.07), transparent 30rem),
     var(--background);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 button,
@@ -47,10 +53,140 @@ input,
 select,
 textarea {
   color: inherit;
+  font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  outline-offset: 2px;
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(24, 115, 78, 0.16);
 }
 
 ::selection {
-  background: rgba(23, 148, 81, 0.2);
+  background: rgba(24, 115, 78, 0.18);
+}
+
+/* Institutional portal shell ------------------------------------------------ */
+.school-portal-shell {
+  color: var(--school-ink);
+}
+
+.portal-shell-content > main {
+  margin: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  padding: 0 !important;
+}
+
+.portal-shell-content > main > header {
+  border: 1px solid var(--school-line) !important;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  padding: 24px !important;
+  box-shadow: 0 1px 2px rgba(15, 43, 32, 0.025), 0 10px 30px rgba(15, 43, 32, 0.035);
+}
+
+.portal-shell-content > main > header > form[action="/auth/signout"] {
+  display: none;
+}
+
+.portal-shell-content > main > header h1 {
+  letter-spacing: -0.025em;
+}
+
+.portal-shell-content > main > header a[href="/dashboard"],
+.portal-shell-content > main > header a[href="/teacher"] {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  border-radius: 9px;
+  color: #567064;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.portal-shell-content section[class*="bg-[var(--surface)]"],
+.portal-shell-content article[class*="bg-[var(--surface)]"] {
+  box-shadow: 0 1px 2px rgba(15, 43, 32, 0.018);
+}
+
+.portal-shell-content input,
+.portal-shell-content select,
+.portal-shell-content textarea {
+  border-color: var(--school-line);
+  background-color: #fff;
+  box-shadow: 0 1px 1px rgba(15, 43, 32, 0.015);
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.portal-shell-content input:hover,
+.portal-shell-content select:hover,
+.portal-shell-content textarea:hover {
+  border-color: #c7d8cf;
+}
+
+.portal-shell-content input:focus,
+.portal-shell-content select:focus,
+.portal-shell-content textarea:focus {
+  border-color: #79a890;
+  box-shadow: 0 0 0 3px rgba(24, 115, 78, 0.08);
+}
+
+.portal-shell-content table {
+  font-variant-numeric: tabular-nums;
+}
+
+.portal-shell-content thead {
+  background: #f3f7f4 !important;
+}
+
+.portal-shell-content thead th {
+  color: #5c7267;
+  font-size: 10px;
+  font-weight: 700 !important;
+  letter-spacing: 0.075em;
+}
+
+.portal-shell-content tbody tr {
+  transition: background-color 140ms ease;
+}
+
+.portal-shell-content tbody tr:hover {
+  background: #fbfdfc;
+}
+
+.portal-shell-content tbody td {
+  border-color: #e3ebe6;
+}
+
+.portal-shell-content code {
+  border-radius: 6px;
+  background: #edf3ef;
+  padding: 2px 5px;
+  color: #355f4d;
+  font-size: 0.9em;
+}
+
+@media (max-width: 639px) {
+  .portal-shell-content > main > header {
+    border-radius: 14px;
+    padding: 18px !important;
+  }
+
+  .portal-shell-content > main > header h1 {
+    font-size: 1.55rem !important;
+    line-height: 1.2 !important;
+  }
 }
 
 /* Legacy dark utility cleanup while pages are migrated to the white-first system. */
