@@ -61,6 +61,8 @@
 }
 
 html {
+  width: 100%;
+  overflow-x: hidden;
   background: var(--background);
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -70,6 +72,8 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
   background:
     radial-gradient(circle at 90% -5%, rgba(44, 122, 87, 0.055), transparent 30rem),
     var(--background);
@@ -108,6 +112,24 @@ a:focus-visible {
 
 ::selection {
   background: rgba(44, 122, 87, 0.16);
+}
+
+/* Full-width application frames -------------------------------------------- */
+.portal-shell-content {
+  width: 100%;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+.terminal-page-shell,
+.terminal-page-shell > main {
+  width: 100%;
+}
+
+.terminal-page-shell > main > div {
+  width: 100% !important;
+  max-width: none !important;
+  margin-inline: 0 !important;
 }
 
 /* Institutional portal shell ------------------------------------------------ */
