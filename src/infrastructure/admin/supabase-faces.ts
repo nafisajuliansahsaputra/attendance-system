@@ -2,8 +2,8 @@ import { z } from "zod";
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
 const enrollmentResultSchema = z.object({
-  faceProfileId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  faceProfileId: z.string().guid(),
+  studentId: z.string().guid(),
   modelName: z.string().min(1),
   modelVersion: z.string().min(1),
   embeddingDimensions: z.number().int().min(32).max(2048),
@@ -13,16 +13,16 @@ const enrollmentResultSchema = z.object({
 });
 
 const targetSchema = z.object({
-  studentId: z.string().uuid(),
+  studentId: z.string().guid(),
   nis: z.string(),
   fullName: z.string().min(1),
   active: z.boolean(),
-  classId: z.string().uuid().nullable().optional(),
+  classId: z.string().guid().nullable().optional(),
   classCode: z.string().nullable().optional(),
   className: z.string().nullable().optional(),
   faceProfile: z
     .object({
-      id: z.string().uuid(),
+      id: z.string().guid(),
       modelName: z.string().min(1),
       modelVersion: z.string().min(1),
       qualityScore: z.number().min(0).max(1).nullable().optional(),

@@ -17,7 +17,7 @@ const outcomeCodeSchema = z.enum([
 ]);
 
 const transactionStateSchema = z.object({
-  transactionId: z.string().uuid(),
+  transactionId: z.string().guid(),
   status: z.enum(["PENDING", "CONSUMED", "EXPIRED", "CANCELLED"]),
   expiresAt: z.string(),
   consumedAt: z.string().nullable().optional(),
@@ -28,24 +28,24 @@ const transactionStateSchema = z.object({
     .nullable()
     .optional(),
   verificationScore: z.number().nullable().optional(),
-  attendanceRecordId: z.string().uuid().nullable().optional(),
+  attendanceRecordId: z.string().guid().nullable().optional(),
 });
 
 const verificationPayloadSchema = z.object({
-  transactionId: z.string().uuid(),
-  institutionId: z.string().uuid(),
-  deviceId: z.string().uuid(),
+  transactionId: z.string().guid(),
+  institutionId: z.string().guid(),
+  deviceId: z.string().guid(),
   requestId: z.string().min(1),
   rfidUid: z.string().min(1),
   occurredAt: z.string().min(1),
   expiresAt: z.string().min(1),
   student: z.object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     name: z.string().min(1),
     className: z.string().min(1),
   }),
   session: z.object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     name: z.string().min(1),
     type: z.string().min(1),
     opensAt: z.string().min(1),
@@ -54,7 +54,7 @@ const verificationPayloadSchema = z.object({
     eligible: z.boolean(),
   }),
   faceProfile: z.object({
-    id: z.string().uuid(),
+    id: z.string().guid(),
     modelName: z.string().min(1),
     modelVersion: z.string().min(1),
     embedding: z.array(z.number()).min(32).max(2048),
@@ -64,11 +64,11 @@ const verificationPayloadSchema = z.object({
 });
 
 const finalizationSchema = z.object({
-  transactionId: z.string().uuid(),
+  transactionId: z.string().guid(),
   status: z.literal("CONSUMED"),
-  deviceEventId: z.string().uuid().nullable().optional(),
-  verificationAttemptId: z.string().uuid().nullable().optional(),
-  attendanceRecordId: z.string().uuid().nullable().optional(),
+  deviceEventId: z.string().guid().nullable().optional(),
+  verificationAttemptId: z.string().guid().nullable().optional(),
+  attendanceRecordId: z.string().guid().nullable().optional(),
   replayed: z.boolean(),
 });
 

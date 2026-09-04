@@ -27,6 +27,30 @@ describe("parseHomeroomAttendanceSnapshot", () => {
     expect(rows[0].finalStatus).toBeUndefined();
   });
 
+  it("accepts GUID-shaped Postgres UUID values without requiring RFC version bits", () => {
+    const rows = parseHomeroomAttendanceSnapshot([
+      {
+        student_id: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        nis: "D2600001",
+        full_name: "Siswa Dummy",
+        class_id: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+        class_name: "X TKJ 1",
+        arrival_record_id: null,
+        arrival_time: null,
+        attendance_status: null,
+        system_state: "PENDING_CONFIRMATION",
+        final_status: null,
+        needs_confirmation: true,
+      },
+    ]);
+
+    expect(rows[0]).toMatchObject({
+      studentId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      classId: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      fullName: "Siswa Dummy",
+    });
+  });
+
   it("preserves a teacher-confirmed absence reason", () => {
     const rows = parseHomeroomAttendanceSnapshot([
       {
