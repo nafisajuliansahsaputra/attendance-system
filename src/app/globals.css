@@ -117,6 +117,14 @@ a:focus-visible {
 /* Full-width application frames -------------------------------------------- */
 .portal-shell-content {
   width: 100%;
+  min-width: 0;
+  max-width: none !important;
+  margin-inline: 0 !important;
+}
+
+.portal-shell-content > * {
+  width: 100%;
+  min-width: 0;
   max-width: none !important;
   margin-inline: 0 !important;
 }
@@ -166,11 +174,13 @@ a:focus-visible {
 .portal-shell-content > main {
   margin: 0 !important;
   min-height: 0 !important;
+  min-width: 0;
   max-width: none !important;
   padding: 0 !important;
 }
 
 .portal-shell-content > main > header {
+  width: 100%;
   border: 1px solid var(--school-line) !important;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.96);
@@ -197,6 +207,13 @@ a:focus-visible {
   font-weight: 600;
 }
 
+.portal-shell-content section,
+.portal-shell-content article,
+.portal-shell-content form,
+.portal-shell-content label {
+  min-width: 0;
+}
+
 .portal-shell-content section[class*="bg-[var(--surface)]"],
 .portal-shell-content article[class*="bg-[var(--surface)]"] {
   box-shadow: 0 1px 2px rgba(18, 59, 43, 0.018);
@@ -205,6 +222,8 @@ a:focus-visible {
 .portal-shell-content input,
 .portal-shell-content select,
 .portal-shell-content textarea {
+  min-width: 0;
+  max-width: 100%;
   border-color: var(--school-line);
   background-color: #fff;
   box-shadow: 0 1px 1px rgba(18, 59, 43, 0.015);
@@ -225,6 +244,8 @@ a:focus-visible {
 }
 
 .portal-shell-content table {
+  width: 100%;
+  max-width: 100%;
   font-variant-numeric: tabular-nums;
 }
 
@@ -249,6 +270,53 @@ a:focus-visible {
 
 .portal-shell-content tbody td {
   border-color: #e3ebe6;
+}
+
+/*
+ * Portal data-table audit.
+ * The admin/student, device, staff, homeroom and report tables previously
+ * forced 900-1560px minimum widths. That created a horizontal scrollbar even
+ * on normal desktop screens after the fixed sidebar consumed 280px. On desktop
+ * the table now fits the available portal width, while controls are allowed to
+ * shrink and text wraps instead of expanding the whole page.
+ */
+@media (min-width: 1100px) {
+  .portal-shell-content .overflow-x-auto {
+    overflow-x: visible !important;
+  }
+
+  .portal-shell-content table {
+    min-width: 0 !important;
+    table-layout: fixed;
+  }
+
+  .portal-shell-content th,
+  .portal-shell-content td {
+    min-width: 0;
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .portal-shell-content td form {
+    width: 100%;
+    min-width: 0 !important;
+  }
+
+  .portal-shell-content td input,
+  .portal-shell-content td select,
+  .portal-shell-content td textarea,
+  .portal-shell-content td button {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .portal-shell-content td a {
+    max-width: 100%;
+    white-space: normal;
+  }
 }
 
 .portal-shell-content code {
