@@ -126,10 +126,36 @@ a:focus-visible {
   width: 100%;
 }
 
+.terminal-page-shell > main {
+  padding: 16px !important;
+}
+
 .terminal-page-shell > main > div {
   width: 100% !important;
   max-width: none !important;
   margin-inline: 0 !important;
+}
+
+.terminal-page-shell > main > div > header {
+  min-height: 72px;
+  margin-bottom: 16px !important;
+  padding: 14px 20px !important;
+}
+
+@media (min-width: 640px) {
+  .terminal-page-shell > main {
+    padding-inline: 24px !important;
+  }
+
+  .terminal-page-shell > main > div > header {
+    padding-inline: 24px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .terminal-page-shell > main {
+    padding: 20px 32px !important;
+  }
 }
 
 /* Institutional portal shell ------------------------------------------------ */
