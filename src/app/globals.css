@@ -1,25 +1,55 @@
 @import "tailwindcss";
 
+/*
+ * Amaliah institutional palette.
+ * The logo reference is a clean white + vivid school green system, so the UI
+ * keeps white as the dominant surface and uses the logo green for identity,
+ * navigation, primary actions, focus states, and positive attendance feedback.
+ */
+@theme {
+  --color-emerald-50: #f1fbf5;
+  --color-emerald-100: #dcf5e5;
+  --color-emerald-200: #bce8cb;
+  --color-emerald-300: #89d6a2;
+  --color-emerald-400: #48bc72;
+  --color-emerald-500: #01903e;
+  --color-emerald-600: #007f37;
+  --color-emerald-700: #006c30;
+  --color-emerald-800: #075727;
+  --color-emerald-900: #0a461f;
+  --color-emerald-950: #062d15;
+}
+
 :root {
-  --background: #f4f7f5;
+  --background: #f7faf8;
   --surface: #ffffff;
-  --surface-soft: #f2f6f3;
-  --surface-strong: #e8f0eb;
-  --border: #dbe5df;
-  --border-strong: #c4d6cc;
-  --text: #17352a;
-  --muted: #667b71;
-  --success: #18734e;
-  --success-strong: #115b3d;
-  --success-soft: #e8f3ed;
+  --surface-soft: #f2f8f4;
+  --surface-strong: #e6f3ea;
+  --border: #d5e8dc;
+  --border-strong: #b7d8c3;
+  --text: #183329;
+  --muted: #687b70;
+
+  /* Primary brand green sampled from the supplied Amaliah school logo. */
+  --brand: #01903e;
+  --brand-strong: #007633;
+  --brand-deep: #00652c;
+  --brand-soft: #e9f7ee;
+  --brand-soft-strong: #d7efdf;
+
+  /* Existing semantic aliases stay intact so attendance logic/UI does not drift. */
+  --success: var(--brand);
+  --success-strong: var(--brand-strong);
+  --success-soft: var(--brand-soft);
   --danger: #c93d4f;
   --danger-soft: #fff1f3;
   --warning: #a86f1d;
   --warning-soft: #fff8e8;
-  --school-deep: #12382b;
-  --school-deep-strong: #0c2b20;
-  --school-ink: #17352a;
-  --school-line: #dbe5df;
+
+  --school-deep: var(--brand);
+  --school-deep-strong: var(--brand-strong);
+  --school-ink: var(--text);
+  --school-line: var(--border);
 }
 
 * {
@@ -37,7 +67,7 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 90% -5%, rgba(24, 115, 78, 0.07), transparent 30rem),
+    radial-gradient(circle at 90% -5%, rgba(1, 144, 62, 0.075), transparent 30rem),
     var(--background);
   color: var(--text);
   font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -69,11 +99,11 @@ select:focus-visible,
 textarea:focus-visible,
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(24, 115, 78, 0.16);
+  outline: 3px solid rgba(1, 144, 62, 0.18);
 }
 
 ::selection {
-  background: rgba(24, 115, 78, 0.18);
+  background: rgba(1, 144, 62, 0.17);
 }
 
 /* Institutional portal shell ------------------------------------------------ */
@@ -91,9 +121,9 @@ a:focus-visible {
 .portal-shell-content > main > header {
   border: 1px solid var(--school-line) !important;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 255, 255, 0.96);
   padding: 24px !important;
-  box-shadow: 0 1px 2px rgba(15, 43, 32, 0.025), 0 10px 30px rgba(15, 43, 32, 0.035);
+  box-shadow: 0 1px 2px rgba(0, 91, 39, 0.025), 0 10px 30px rgba(0, 91, 39, 0.035);
 }
 
 .portal-shell-content > main > header > form[action="/auth/signout"] {
@@ -110,14 +140,14 @@ a:focus-visible {
   align-items: center;
   min-height: 32px;
   border-radius: 9px;
-  color: #567064;
+  color: #4d7560;
   font-size: 12px;
   font-weight: 600;
 }
 
 .portal-shell-content section[class*="bg-[var(--surface)]"],
 .portal-shell-content article[class*="bg-[var(--surface)]"] {
-  box-shadow: 0 1px 2px rgba(15, 43, 32, 0.018);
+  box-shadow: 0 1px 2px rgba(0, 91, 39, 0.018);
 }
 
 .portal-shell-content input,
@@ -125,21 +155,21 @@ a:focus-visible {
 .portal-shell-content textarea {
   border-color: var(--school-line);
   background-color: #fff;
-  box-shadow: 0 1px 1px rgba(15, 43, 32, 0.015);
+  box-shadow: 0 1px 1px rgba(0, 91, 39, 0.015);
   transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
 }
 
 .portal-shell-content input:hover,
 .portal-shell-content select:hover,
 .portal-shell-content textarea:hover {
-  border-color: #c7d8cf;
+  border-color: #bddbc8;
 }
 
 .portal-shell-content input:focus,
 .portal-shell-content select:focus,
 .portal-shell-content textarea:focus {
-  border-color: #79a890;
-  box-shadow: 0 0 0 3px rgba(24, 115, 78, 0.08);
+  border-color: #42af6c;
+  box-shadow: 0 0 0 3px rgba(1, 144, 62, 0.1);
 }
 
 .portal-shell-content table {
@@ -147,11 +177,11 @@ a:focus-visible {
 }
 
 .portal-shell-content thead {
-  background: #f3f7f4 !important;
+  background: #f1f8f3 !important;
 }
 
 .portal-shell-content thead th {
-  color: #5c7267;
+  color: #567364;
   font-size: 10px;
   font-weight: 700 !important;
   letter-spacing: 0.075em;
@@ -162,18 +192,18 @@ a:focus-visible {
 }
 
 .portal-shell-content tbody tr:hover {
-  background: #fbfdfc;
+  background: #fbfefc;
 }
 
 .portal-shell-content tbody td {
-  border-color: #e3ebe6;
+  border-color: #e1ece5;
 }
 
 .portal-shell-content code {
   border-radius: 6px;
-  background: #edf3ef;
+  background: #eaf5ed;
   padding: 2px 5px;
-  color: #355f4d;
+  color: #286044;
   font-size: 0.9em;
 }
 
@@ -189,17 +219,95 @@ a:focus-visible {
   }
 }
 
-/* Legacy dark utility cleanup while pages are migrated to the white-first system. */
+/*
+ * Normalize legacy arbitrary colors left by the first dark-forest design.
+ * This lets the whole app move to the school-logo palette centrally while
+ * pages are gradually converted to semantic tokens.
+ */
+[class~="bg-[#12382b]"] {
+  background-color: var(--brand) !important;
+}
+
+[class~="bg-[#f4f7f5]"],
+[class~="bg-[#f3f6f4]"] {
+  background-color: var(--background) !important;
+}
+
+[class~="bg-[#e8f3ed]"],
+[class~="bg-[#edf2ef]"] {
+  background-color: var(--brand-soft) !important;
+}
+
+[class~="bg-[#176b48]"],
+[class~="bg-[#1b7a52]"] {
+  background-color: var(--brand) !important;
+}
+
+[class~="text-[#12382b]"],
+[class~="text-[#115b3d]"] {
+  color: var(--brand-strong) !important;
+}
+
+[class~="text-[#176b48]"],
+[class~="text-[#1b7a52]"] {
+  color: var(--brand) !important;
+}
+
+[class~="text-[#17352a]"],
+[class~="text-[#24483a]"],
+[class~="text-[#355548]"] {
+  color: var(--text) !important;
+}
+
+[class~="text-[#56806d]"] {
+  color: #4d7560 !important;
+}
+
+[class~="border-[#163e30]"] {
+  border-color: var(--brand-strong) !important;
+}
+
+[class~="border-[#dbe5df]"],
+[class~="border-[#d7e2dc]"],
+[class~="border-[#e3ebe6]"] {
+  border-color: var(--border) !important;
+}
+
+[class~="hover:border-[#b9cfc3]"]:hover {
+  border-color: var(--border-strong) !important;
+}
+
+[class~="hover:bg-[#115b3d]"]:hover {
+  background-color: var(--brand-strong) !important;
+}
+
+[class~="hover:text-[#115b3d]"]:hover {
+  color: var(--brand-strong) !important;
+}
+
+[class~="hover:text-[#176b48]"]:hover {
+  color: var(--brand) !important;
+}
+
+[class~="focus:border-[#6f9f88]"]:focus {
+  border-color: var(--brand) !important;
+}
+
+[class~="focus-visible:outline-[#176b48]"]:focus-visible {
+  outline-color: var(--brand) !important;
+}
+
+/* Legacy dark utility cleanup while pages are migrated to semantic tokens. */
 [class~="bg-black/10"] {
-  background-color: rgba(23, 53, 42, 0.025);
+  background-color: rgba(24, 51, 41, 0.025);
 }
 
 [class~="bg-black/15"] {
-  background-color: rgba(23, 53, 42, 0.035);
+  background-color: rgba(24, 51, 41, 0.035);
 }
 
 [class~="bg-black/20"] {
-  background-color: rgba(23, 53, 42, 0.05);
+  background-color: rgba(24, 51, 41, 0.05);
 }
 
 [class~="text-slate-200"],
@@ -210,8 +318,4 @@ a:focus-visible {
 [class~="text-slate-400"],
 [class~="text-slate-500"] {
   color: var(--muted);
-}
-
-[class~="hover:text-white"]:hover {
-  color: var(--success-strong);
 }
