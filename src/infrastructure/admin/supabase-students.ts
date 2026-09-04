@@ -7,18 +7,18 @@ import type {
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
 const directoryRowSchema = z.object({
-  studentId: z.string().uuid(),
+  studentId: z.string().guid(),
   nis: z.string(),
   fullName: z.string().min(1),
   active: z.boolean(),
-  enrollmentId: z.string().uuid().optional(),
-  classId: z.string().uuid().optional(),
+  enrollmentId: z.string().guid().optional(),
+  classId: z.string().guid().optional(),
   classCode: z.string().optional(),
   className: z.string().optional(),
-  rfidCredentialId: z.string().uuid().optional(),
+  rfidCredentialId: z.string().guid().optional(),
   rfidUid: z.string().optional(),
   rfidRegisteredAt: z.string().optional(),
-  faceProfileId: z.string().uuid().optional(),
+  faceProfileId: z.string().guid().optional(),
   faceStatus: z.enum(["ACTIVE", "REVOKED", "PENDING_REENROLLMENT"]).optional(),
   faceModelName: z.string().optional(),
   faceModelVersion: z.string().optional(),
@@ -26,20 +26,20 @@ const directoryRowSchema = z.object({
 });
 
 const assignResultSchema = z.object({
-  credentialId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  credentialId: z.string().guid(),
+  studentId: z.string().guid(),
   uid: z.string().min(1),
   replacedCount: z.number().int().nonnegative(),
   unchanged: z.boolean(),
 });
 
 const transferResultSchema = z.object({
-  studentId: z.string().uuid(),
-  enrollmentId: z.string().uuid(),
-  classId: z.string().uuid(),
+  studentId: z.string().guid(),
+  enrollmentId: z.string().guid(),
+  classId: z.string().guid(),
   effectiveOn: z.string().date(),
   unchanged: z.boolean(),
-  previousEnrollmentId: z.string().uuid().nullable(),
+  previousEnrollmentId: z.string().guid().nullable(),
 });
 
 export function parseAdminStudentDirectory(raw: unknown): AdminStudentDirectoryRow[] {
