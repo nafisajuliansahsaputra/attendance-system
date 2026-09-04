@@ -9,12 +9,12 @@ import { materializeSupabaseScheduleRange } from "../scheduling/supabase-schedul
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
 const snapshotRowSchema = z.object({
-  student_id: z.string().uuid(),
+  student_id: z.string().guid(),
   nis: z.string(),
   full_name: z.string(),
-  class_id: z.string().uuid(),
+  class_id: z.string().guid(),
   class_name: z.string(),
-  arrival_record_id: z.string().uuid().nullable(),
+  arrival_record_id: z.string().guid().nullable(),
   arrival_time: z.string().nullable(),
   attendance_status: z.enum(["ON_TIME", "LATE", "COMPLETED"]).nullable(),
   system_state: z.enum([
@@ -31,8 +31,8 @@ const snapshotRowSchema = z.object({
 });
 
 const confirmationResultSchema = z.object({
-  schoolDayAttendanceId: z.string().uuid(),
-  studentId: z.string().uuid(),
+  schoolDayAttendanceId: z.string().guid(),
+  studentId: z.string().guid(),
   schoolDate: z.string().date(),
   previousStatus: z.string().nullable(),
   finalStatus: z.enum(["SAKIT", "IZIN", "ALPA"]),
