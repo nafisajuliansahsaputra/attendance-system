@@ -6,5 +6,9 @@ export const metadata: Metadata = {
 };
 
 export default function TerminalPage() {
-  return <LiveRecruiterTerminal />;
+  return (
+    <div className="terminal-page-shell">
+      <LiveRecruiterTerminal />
+    </div>
+  );
 }
