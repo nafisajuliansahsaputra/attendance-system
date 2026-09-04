@@ -82,8 +82,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
 
         <div className="relative flex items-end justify-between gap-6 border-t border-white/10 pt-6">
-          <p className="max-w-md text-xs leading-5 text-emerald-100/45">
-            Akses terbatas untuk administrator sistem, petugas operator, dan wali kelas yang telah terdaftar.
+          <p className="max-w-md text-xs leading-5 text-emerald-100/50">
+            Akun petugas tetap terbatas. Rekruter dan reviewer dapat mencoba mode demo tanpa memperoleh akses administratif.
           </p>
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-100/35">Sistem Absensi Siswa</span>
         </div>
@@ -148,13 +148,53 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-[#176b48] px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(23,107,72,0.16)] transition hover:bg-[#115b3d] focus-visible:outline-[#176b48]"
+              className="w-full rounded-xl bg-[#176b48] px-4 py-3.5 text-sm font-bold text-white shadow-[0_8px_18px_rgba(23,107,72,0.14)] transition hover:bg-[#115b3d] focus-visible:outline-[#176b48]"
             >
               Masuk ke portal sekolah
             </button>
           </form>
 
-          <div className="mt-7 border-t border-[#e3ebe6] pt-5">
+          <div className="my-6 flex items-center gap-3" aria-hidden="true">
+            <span className="h-px flex-1 bg-[var(--border)]" />
+            <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">atau coba demo</span>
+            <span className="h-px flex-1 bg-[var(--border)]" />
+          </div>
+
+          <section className="rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-soft)]/70 p-4 sm:p-5" aria-labelledby="recruiter-demo-title">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold text-[var(--brand)] shadow-sm">
+                R
+              </span>
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--brand)]">Untuk Rekruter / Reviewer</p>
+                <h3 id="recruiter-demo-title" className="mt-1 text-base font-bold text-[var(--text)]">Coba sistem tanpa akun</h3>
+                <p className="mt-1.5 text-xs leading-5 text-[var(--muted)]">
+                  Daftarkan wajah Anda sebagai pemilik RFID sementara, verifikasi menggunakan wajah yang sama, lalu minta orang lain mencoba untuk melihat penolakan wajah berbeda.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <Link
+                href="/terminal"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2.5 text-xs font-bold text-white transition hover:bg-[var(--brand-strong)]"
+              >
+                Mulai demo rekruter →
+              </Link>
+              <Link
+                href="/terminal/lab"
+                className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-strong)] bg-white px-4 py-2.5 text-xs font-bold text-[var(--text)] transition hover:bg-[var(--surface-soft)]"
+              >
+                Simulator perangkat
+              </Link>
+            </div>
+
+            <p className="mt-3 text-[10px] leading-4 text-[var(--muted)]">
+              Mode demo tidak memerlukan akun petugas atau akses ke dashboard administrasi.
+            </p>
+          </section>
+
+          <div className="mt-6 border-t border-[#e3ebe6] pt-5">
             <p className="text-xs leading-5 text-slate-400">
               Jika akun belum memiliki akses atau terjadi kendala masuk, hubungi Administrator Sistem sekolah. Sistem tidak menyediakan pendaftaran akun secara publik.
             </p>
