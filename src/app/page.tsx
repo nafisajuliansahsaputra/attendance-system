@@ -30,8 +30,8 @@ const proofPoints = [
 export default function HomePage() {
   return (
     <main className="min-h-screen lg:h-dvh lg:overflow-hidden">
-      <div className="flex min-h-screen w-full flex-col px-4 py-5 sm:px-6 lg:h-dvh lg:min-h-0 lg:px-8 lg:py-5">
-        <header className="flex min-h-[72px] shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white/90 px-5 py-3.5 shadow-sm backdrop-blur sm:px-6">
+      <div className="flex min-h-screen w-full flex-col px-4 py-4 sm:px-6 lg:h-dvh lg:min-h-0 lg:px-8 lg:py-5">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white/90 px-5 py-3.5 shadow-sm backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">
               A12
@@ -58,24 +58,24 @@ export default function HomePage() {
           </div>
         </header>
 
-        <section className="grid flex-1 gap-8 py-6 lg:min-h-0 lg:grid-cols-2 lg:items-stretch lg:gap-10 xl:gap-12">
+        <section className="grid flex-1 gap-8 py-8 lg:min-h-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch lg:gap-10 lg:py-6 xl:gap-14">
           <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-between lg:py-1">
-            <div className="flex flex-col items-center text-center">
+            <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--success-strong)]">
                 <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
                 Sistem absensi siswa · {SCHOOL.location}
               </div>
 
-              <h1 className="mx-auto mt-5 max-w-[800px] text-4xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-5xl lg:text-[clamp(3rem,4.15vw,5rem)]">
+              <h1 className="mt-5 max-w-[920px] text-4xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-5xl lg:text-[clamp(3rem,4.4vw,5.2rem)]">
                 Absensi RFID dengan verifikasi wajah untuk mencegah titip absen.
               </h1>
 
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[var(--muted)] lg:text-[17px]">
+              <p className="mt-5 max-w-3xl text-base leading-7 text-[var(--muted)] lg:text-[17px]">
                 Sistem ini dirancang untuk kebutuhan absensi {SCHOOL.name}. Kartu RFID digunakan untuk mengenali siswa,
                 lalu kamera memastikan wajah yang melakukan absensi sesuai dengan pemilik kartu sebelum kehadiran dicatat.
               </p>
 
-              <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <div className="mt-6 flex flex-wrap gap-3">
                 <Link
                   href="/terminal"
                   className="rounded-2xl bg-[var(--success)] px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-emerald-900/10 transition hover:-translate-y-0.5 hover:bg-[var(--success-strong)]"
@@ -90,14 +90,14 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <p className="mx-auto mt-3 max-w-2xl text-xs leading-5 text-[var(--muted)]">
+              <p className="mt-3 max-w-3xl text-xs leading-5 text-[var(--muted)]">
                 Pada demo rekruter, daftarkan wajah Anda sebagai pemilik kartu sementara, uji wajah yang sama hingga diterima, lalu minta orang lain mencoba untuk membuktikan wajah berbeda ditolak. Simulator perangkat tersedia untuk pengujian tanpa kamera.
               </p>
             </div>
 
-            <div className="mx-auto mt-8 grid w-full max-w-[760px] gap-3 border-t border-[var(--border)] pt-6 sm:grid-cols-2 lg:mt-0 lg:pt-5">
+            <div className="mt-8 grid gap-3 border-t border-[var(--border)] pt-6 sm:grid-cols-2 lg:mt-0 lg:pt-5">
               {proofPoints.map((item) => (
-                <div key={item} className="flex items-start gap-3 text-left text-sm leading-5 text-[var(--muted)]">
+                <div key={item} className="flex items-start gap-3 text-sm leading-5 text-[var(--muted)]">
                   <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[var(--success-soft)] text-xs font-bold text-[var(--success)]">
                     ✓
                   </span>
