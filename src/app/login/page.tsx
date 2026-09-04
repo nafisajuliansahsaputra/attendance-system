@@ -37,8 +37,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const errorMessage = params.error ? errorMessages[params.error] : undefined;
 
   return (
-    <main className="min-h-screen bg-[var(--background)] px-4 py-5 sm:px-6 lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden lg:p-0">
-      <section className="relative hidden h-dvh overflow-hidden bg-[var(--brand-deep)] text-white lg:grid lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:px-14 lg:py-[34px] xl:px-16 2xl:px-20">
+    <main className="min-h-screen bg-[var(--background)] px-4 py-4 sm:px-6 lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden lg:px-8 lg:py-5">
+      <section className="relative hidden h-full overflow-hidden bg-[var(--brand-deep)] text-white lg:grid lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:rounded-l-2xl lg:px-14 lg:py-[34px] xl:px-16 2xl:px-20">
         <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full border border-white/5 bg-white/[0.025]" />
         <div className="absolute -bottom-36 -left-24 h-96 w-96 rounded-full border border-white/5 bg-white/[0.02]" />
 
@@ -94,7 +94,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </div>
       </section>
 
-      <section className="min-h-[calc(100vh-2.5rem)] bg-white lg:grid lg:h-dvh lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:overflow-hidden lg:px-14 lg:py-[34px] xl:px-16 2xl:px-20">
+      <section className="min-h-[calc(100vh-2rem)] bg-white lg:grid lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)_auto] lg:overflow-hidden lg:rounded-r-2xl lg:px-14 lg:py-[34px] xl:px-16 2xl:px-20">
         <div className="mx-auto hidden w-full max-w-[760px] lg:block">
           <Link
             href="/"
