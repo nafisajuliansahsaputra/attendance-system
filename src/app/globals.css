@@ -198,8 +198,9 @@ a:focus-visible {
 }
 
 .terminal-page-shell section > header + div > aside > div.mt-5.space-y-3 > * {
-  margin-block-start: 0 !important;
+  margin: 0 !important;
   min-width: 0;
+  height: 100%;
 }
 
 @media (min-width: 640px) {
