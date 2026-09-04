@@ -15,17 +15,6 @@ interface LoginPageProps {
   searchParams: Promise<{ error?: string }>;
 }
 
-function SchoolIcon() {
-  return (
-    <svg className="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 10 12 4l9 6" />
-      <path d="M5 9v10h14V9M3 20h18" />
-      <path d="M9 19v-6h6v6" />
-      <path d="M12 4V2" />
-    </svg>
-  );
-}
-
 function CheckIcon() {
   return (
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -40,18 +29,18 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
   return (
     <main className="min-h-screen bg-[var(--background)] px-4 py-5 sm:px-6 lg:grid lg:h-dvh lg:min-h-0 lg:grid-cols-2 lg:overflow-hidden lg:p-0">
-      <section className="relative hidden h-dvh overflow-hidden bg-[var(--brand-deep)] p-9 text-white lg:flex lg:flex-col lg:justify-between xl:p-12 2xl:p-14">
+      <section className="relative hidden h-dvh overflow-hidden bg-[var(--brand-deep)] px-14 pb-8 pt-[34px] text-white lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full border border-white/5 bg-white/[0.025]" />
         <div className="absolute -bottom-36 -left-24 h-96 w-96 rounded-full border border-white/5 bg-white/[0.02]" />
 
         <div className="relative">
           <div className="flex items-center gap-3">
-            <span className="grid h-12 w-12 place-items-center rounded-xl border border-white/15 bg-white/10 text-emerald-50">
-              <SchoolIcon />
+            <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/10 text-sm font-bold text-white">
+              A12
             </span>
             <div>
-              <p className="text-sm font-bold">{SCHOOL.shortName}</p>
-              <p className="mt-0.5 text-xs text-emerald-100/55">Ciawi, Bogor</p>
+              <p className="text-sm font-semibold">{SCHOOL.name}</p>
+              <p className="mt-0.5 text-xs text-emerald-100/55">{SCHOOL.systemName}</p>
             </div>
           </div>
 
@@ -93,11 +82,11 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="w-full px-5 py-6 sm:px-8 lg:px-10 lg:py-5 xl:px-14 2xl:px-20">
           <div className="mx-auto w-full max-w-[620px] rounded-[22px] border border-[var(--border)] bg-white p-6 shadow-[0_18px_50px_rgba(15,43,32,0.08)] sm:p-8 lg:max-w-[680px] lg:border-0 lg:p-0 lg:shadow-none">
             <div className="flex items-center gap-3 lg:hidden">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--brand-deep)] text-white">
-                <SchoolIcon />
+              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--brand)] text-sm font-bold text-white">
+                A12
               </span>
               <div>
-                <p className="text-sm font-bold text-[var(--text)]">{SCHOOL.shortName}</p>
+                <p className="text-sm font-semibold text-[var(--text)]">{SCHOOL.name}</p>
                 <p className="text-xs text-[var(--muted)]">{SCHOOL.systemName}</p>
               </div>
             </div>
