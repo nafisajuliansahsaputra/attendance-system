@@ -6,5 +6,9 @@ export const metadata: Metadata = {
 };
 
 export default function TerminalLabPage() {
-  return <TerminalSimulator />;
+  return (
+    <div className="terminal-page-shell">
+      <TerminalSimulator />
+    </div>
+  );
 }
