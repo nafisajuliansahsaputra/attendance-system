@@ -60,13 +60,8 @@ export default function HomePage() {
 
         <section className="grid flex-1 gap-8 py-8 lg:min-h-0 lg:grid-cols-[1.05fr_0.95fr] lg:items-stretch lg:gap-10 lg:py-6 xl:gap-14">
           <div className="min-w-0 lg:flex lg:min-h-0 lg:flex-col lg:justify-between lg:py-1">
-            <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-strong)] bg-[var(--success-soft)] px-3 py-1.5 text-xs font-semibold text-[var(--success-strong)]">
-                <span className="h-2 w-2 rounded-full bg-[var(--success)]" />
-                Sistem absensi siswa · {SCHOOL.location}
-              </div>
-
-              <h1 className="mt-5 max-w-[920px] text-4xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-5xl lg:text-[clamp(3rem,4.4vw,5.2rem)]">
+            <div className="lg:flex lg:flex-1 lg:flex-col lg:justify-center lg:pb-3">
+              <h1 className="max-w-[920px] text-4xl font-semibold leading-[1.03] tracking-[-0.045em] sm:text-5xl lg:text-[clamp(3rem,4.4vw,5.2rem)]">
                 Absensi RFID dengan verifikasi wajah untuk mencegah titip absen.
               </h1>
 
