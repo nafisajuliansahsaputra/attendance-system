@@ -5,17 +5,13 @@ import { createPortal } from "react-dom";
 
 export function ProtectedPortalButton() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const triggerButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
     if (!open) return;
 
+    const triggerButton = triggerButtonRef.current;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -33,12 +29,12 @@ export function ProtectedPortalButton() {
       window.cancelAnimationFrame(focusFrame);
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
-      triggerButtonRef.current?.focus();
+      triggerButton?.focus();
     };
   }, [open]);
 
   const modal =
-    mounted && open
+    open && typeof document !== "undefined"
       ? createPortal(
           <div
             className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-[#0c261d]/50 px-4 py-6 backdrop-blur-sm sm:px-6 sm:py-8"
