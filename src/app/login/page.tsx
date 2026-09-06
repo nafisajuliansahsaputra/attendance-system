@@ -86,7 +86,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
         <div className="relative z-10 flex items-end justify-between gap-6 border-t border-white/10 pt-5">
           <p className="max-w-md text-xs leading-5 text-emerald-100/50">
-            Akun petugas tetap terbatas. Rekruter dan reviewer dapat mencoba mode demo tanpa memperoleh akses administratif.
+            Akses portal ini dibatasi untuk administrator sistem dan petugas sekolah yang telah terdaftar.
           </p>
           <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-100/35">
             Sistem Absensi Siswa
@@ -177,53 +177,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                 Masuk ke portal sekolah
               </button>
             </form>
-
-            <div className="my-6 flex items-center gap-4" aria-hidden="true">
-              <span className="h-px flex-1 bg-[var(--border)]" />
-              <span className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
-                atau coba demo
-              </span>
-              <span className="h-px flex-1 bg-[var(--border)]" />
-            </div>
-
-            <section
-              className="rounded-2xl border border-[var(--border-strong)] bg-[var(--brand-soft)]/70 p-5"
-              aria-labelledby="recruiter-demo-title"
-            >
-              <div className="grid gap-5 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-center">
-                <div className="flex min-w-0 items-start gap-3.5">
-                  <span className="mt-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-sm font-bold text-[var(--brand)] shadow-sm">
-                    R
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--brand)]">
-                      Untuk Rekruter / Reviewer
-                    </p>
-                    <h3 id="recruiter-demo-title" className="mt-1 text-[17px] font-bold text-[var(--text)]">
-                      Coba sistem tanpa akun
-                    </h3>
-                    <p className="mt-1.5 max-w-md text-xs leading-5 text-[var(--muted)]">
-                      Daftarkan wajah sendiri, verifikasi wajah yang sama, lalu minta orang lain mencoba untuk membuktikan wajah berbeda ditolak.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-2.5">
-                  <Link
-                    href="/terminal"
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl bg-[var(--brand)] px-4 py-2 text-xs font-bold text-white transition hover:bg-[var(--brand-strong)]"
-                  >
-                    Mulai demo rekruter →
-                  </Link>
-                  <Link
-                    href="/terminal/lab"
-                    className="inline-flex min-h-11 items-center justify-center rounded-xl border border-[var(--border-strong)] bg-white px-4 py-2 text-xs font-bold text-[var(--text)] transition hover:bg-[var(--surface-soft)]"
-                  >
-                    Simulator perangkat
-                  </Link>
-                </div>
-              </div>
-            </section>
           </div>
         </div>
 
