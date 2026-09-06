@@ -85,9 +85,15 @@ export default function HomePage() {
                 </Link>
               </div>
 
-              <p className="mt-3 max-w-3xl text-xs leading-5 text-[var(--muted)]">
-                Pada demo rekruter, daftarkan wajah Anda sebagai pemilik kartu sementara, uji wajah yang sama hingga diterima, lalu minta orang lain mencoba untuk membuktikan wajah berbeda ditolak. Simulator perangkat tersedia untuk pengujian tanpa kamera.
-              </p>
+              <div className="mt-3 max-w-3xl border-l-2 border-[var(--success)] pl-4 text-xs leading-5 text-[var(--muted)]">
+                <p>
+                  <span className="font-semibold text-[var(--text)]">Halaman ini khusus untuk demonstrasi.</span>{" "}
+                  Lingkungan publik disediakan agar rekruter atau reviewer dapat mencoba alur utama sistem tanpa memperoleh akses ke portal operasional sekolah.
+                </p>
+                <p className="mt-1.5">
+                  Sistem operasional sebenarnya tidak dibuka untuk akses umum karena memuat data identitas siswa, UID RFID, profil wajah, jadwal, riwayat kehadiran, serta hak akses petugas. Akses tersebut hanya diberikan kepada pengguna sekolah yang berwenang. Data yang digunakan pada mode demo bukan data operasional sekolah.
+                </p>
+              </div>
             </div>
 
             <div className="mt-8 grid gap-3 border-t border-[var(--border)] pt-6 sm:grid-cols-2 lg:mt-0 lg:pt-5">
@@ -137,7 +143,7 @@ export default function HomePage() {
 
               <div className="shrink-0 border-t border-[var(--border)] bg-[var(--surface-soft)]/60 px-5 py-4 xl:px-6">
                 <p className="text-xs leading-5 text-[var(--muted)]">
-                  Rekruter dapat menjalankan demo kamera langsung tanpa akun petugas untuk menunjukkan verifikasi wajah 1:1, sementara simulator perangkat tetap tersedia untuk menguji kondisi absensi lain tanpa kamera.
+                  Yang tersedia untuk publik adalah lingkungan demonstrasi dengan akses terbatas. Portal operasional sekolah tetap dipisahkan dan dilindungi karena mengelola identitas siswa, profil wajah, RFID, catatan kehadiran, serta hak akses petugas.
                 </p>
               </div>
             </div>
