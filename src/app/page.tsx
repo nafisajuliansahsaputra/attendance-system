@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ProtectedPortalButton } from "@/components/public/ProtectedPortalButton";
 import { SCHOOL } from "@/config/school";
 
 const foundations = [
@@ -43,12 +44,7 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Link
-              href="/login"
-              className="rounded-xl border border-[var(--border)] bg-white px-4 py-2.5 text-sm font-semibold transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-soft)]"
-            >
-              Masuk sebagai petugas
-            </Link>
+            <ProtectedPortalButton />
             <Link
               href="/terminal"
               className="rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[var(--success-strong)]"
