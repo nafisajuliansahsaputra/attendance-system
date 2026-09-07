@@ -18,14 +18,14 @@ export async function login(formData: FormData) {
   });
 
   if (!parsed.success) {
-    redirect("/login?error=invalid-input");
+    redirect("/masuk-petugas?error=invalid-input");
   }
 
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
-    redirect("/login?error=credentials");
+    redirect("/masuk-petugas?error=credentials");
   }
 
   const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
@@ -36,14 +36,14 @@ export async function login(formData: FormData) {
 
   if (!userId) {
     await supabase.auth.signOut();
-    redirect("/login?error=session");
+    redirect("/masuk-petugas?error=session");
   }
 
   const context = await getAuthorizationContext(userId);
 
   if (!context) {
     await supabase.auth.signOut();
-    redirect("/login?error=not-authorized");
+    redirect("/masuk-petugas?error=not-authorized");
   }
 
   revalidatePath("/", "layout");

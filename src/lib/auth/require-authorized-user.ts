@@ -18,7 +18,7 @@ export async function requireAuthorizedUser(
   const userId = typeof claims?.sub === "string" ? claims.sub : null;
 
   if (!userId || !claims) {
-    redirect("/login");
+    redirect("/masuk-petugas");
   }
 
   const context = await getAuthorizationContext(userId);
