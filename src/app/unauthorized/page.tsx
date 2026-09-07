@@ -24,7 +24,7 @@ export default async function UnauthorizedPage({ searchParams }: UnauthorizedPag
 
         <div className="mt-8 flex flex-wrap gap-3">
           <Link
-            href="/login"
+            href="/masuk-petugas"
             className="rounded-xl bg-[var(--success)] px-4 py-2.5 text-sm font-semibold text-white"
           >
             Kembali ke halaman masuk
