@@ -54,7 +54,7 @@ export async function updateSupabaseSession(request: NextRequest) {
 
   if (!claims && isProtectedPath(request.nextUrl.pathname)) {
     const loginUrl = request.nextUrl.clone();
-    loginUrl.pathname = "/login";
+    loginUrl.pathname = "/masuk-petugas";
     loginUrl.search = "";
     loginUrl.searchParams.set(
       "next",
