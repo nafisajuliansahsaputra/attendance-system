@@ -536,6 +536,8 @@ export function OperationalTerminalKiosk({
 
   const submitRfid = useCallback(
     async (uid: string, source = "keyboard-wedge") => {
+      if (presentationMode) return;
+
       const normalized = normalizeSerialUid(uid);
 
       if (
@@ -601,6 +603,7 @@ export function OperationalTerminalKiosk({
       finishResult,
       handleCardResult,
       paired,
+      presentationMode,
       serverOnline,
       terminalStarted,
     ],
