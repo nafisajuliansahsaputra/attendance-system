@@ -8,6 +8,11 @@ export const metadata: Metadata = {
     template: `%s | ${SCHOOL.name}`,
   },
   description: `${SCHOOL.systemDescription} Digunakan sebagai sistem pengelolaan kehadiran ${SCHOOL.name}.`,
+  icons: {
+    icon: "/brand/amaliah-logo.webp",
+    shortcut: "/brand/amaliah-logo.webp",
+    apple: "/brand/amaliah-logo.webp",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

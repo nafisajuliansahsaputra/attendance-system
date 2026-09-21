@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
 import { login } from "./actions";
 
@@ -43,9 +44,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="absolute -bottom-36 -left-24 h-96 w-96 rounded-full border border-white/5 bg-white/[0.02]" />
 
         <div className="relative z-10 flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-xl border border-white/15 bg-white/10 text-sm font-bold text-white">
-            A12
-          </span>
+          <SchoolLogo size={44} priority className="ring-white/15" />
           <div>
             <p className="text-sm font-semibold">{SCHOOL.name}</p>
             <p className="mt-0.5 text-xs text-emerald-100/55">{SCHOOL.systemName}</p>
@@ -107,9 +106,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <div className="flex min-h-0 items-center px-5 py-6 sm:px-8 lg:px-0 lg:py-4">
           <div className="mx-auto w-full max-w-[760px] rounded-[22px] border border-[var(--border)] bg-white p-6 shadow-[0_18px_50px_rgba(15,43,32,0.08)] sm:p-8 lg:border-0 lg:p-0 lg:shadow-none">
             <div className="flex items-center gap-3 lg:hidden">
-              <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--brand)] text-sm font-bold text-white">
-                A12
-              </span>
+              <SchoolLogo size={44} priority />
               <div>
                 <p className="text-sm font-semibold text-[var(--text)]">{SCHOOL.name}</p>
                 <p className="text-xs text-[var(--muted)]">{SCHOOL.systemName}</p>

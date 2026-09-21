@@ -7,6 +7,7 @@ import {
   operationalTerminalMessage,
   type OperationalTerminalTone,
 } from "@/application/device/operational-terminal";
+import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
 
 const RESULT_RESET_MS = 4500;
@@ -1021,9 +1022,7 @@ export function OperationalTerminalKiosk() {
       <div className="flex h-full w-full flex-col overflow-hidden bg-white">
         <header className="flex flex-wrap items-center justify-between gap-4 bg-[#174e39] px-5 py-4 text-white sm:px-7">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-[#174e39]">
-              A12
-            </span>
+            <SchoolLogo size={44} priority className="ring-white/15" />
             <div className="min-w-0">
               <p className="truncate text-sm font-bold sm:text-base">{SCHOOL.name}</p>
               <p className="truncate text-xs text-emerald-100/65">
@@ -1081,9 +1080,11 @@ export function OperationalTerminalKiosk() {
               {!cameraReady ? (
                 <div className="absolute inset-0 grid place-items-center bg-[#0d1d17] px-8 text-center text-white">
                   <div className="max-w-xl">
-                    <div className="mx-auto grid h-20 w-20 place-items-center rounded-[24px] border border-white/10 bg-white/5 text-2xl font-black">
-                      A12
-                    </div>
+                    <SchoolLogo
+                      size={80}
+                      priority
+                      className="mx-auto rounded-[24px] ring-white/10"
+                    />
                     <h1 className="mt-6 text-3xl font-bold tracking-[-0.04em] sm:text-4xl">
                       Terminal absensi production
                     </h1>
@@ -1163,7 +1164,11 @@ export function OperationalTerminalKiosk() {
               <div
                 className={`grid h-14 w-14 place-items-center rounded-2xl text-base font-black ${promptStyle.icon}`}
               >
-                {prompt.icon}
+                {prompt.icon === "A12" ? (
+                  <SchoolLogo size={46} className="rounded-xl ring-0" />
+                ) : (
+                  prompt.icon
+                )}
               </div>
               <p
                 className={`mt-5 text-[10px] font-bold uppercase tracking-[0.18em] ${promptStyle.text}`}
