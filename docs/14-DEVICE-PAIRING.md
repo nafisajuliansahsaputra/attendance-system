@@ -2,76 +2,66 @@
 
 ## Tujuan
 
-Terminal absensi produksi tidak lagi menerima secret melalui proses manual dari komputer administrator. Administrator mendaftarkan identitas terminal, membuat kode pairing sekali pakai, lalu perangkat mengklaim kode tersebut melalui API.
+Terminal laptop sekolah dipasangkan langsung ke server production. Tidak ada bridge localhost, file `.env.device`, atau proses Node lokal yang wajib dijalankan.
 
-## Lifecycle
+Administrator tetap membuat kode pairing sekali pakai dari `/dashboard/devices`. Laptop terminal membuka `/terminal/device`, memasukkan kode tersebut, lalu server membuat sesi terminal HttpOnly yang aman.
+
+## Lifecycle terminal laptop
 
 1. Administrator mendaftarkan terminal di `/dashboard/devices`.
-2. Administrator membuat kode pairing. Kode berlaku 10 menit dan kode plaintext tidak disimpan di database.
-3. Perangkat/bridge mengirim `POST /api/device/v1/pair` dengan kode dan versi protokol.
-4. Server membuat secret perangkat baru, menyimpan hanya SHA-256 hash, dan mengembalikan plaintext secret sekali saja kepada perangkat.
-5. Perangkat menyimpan `DEVICE_ID`, `DEVICE_SECRET`, dan `DEVICE_PROTOCOL_VERSION` secara lokal.
-6. Perangkat mengirim heartbeat berkala ke `POST /api/device/v1/heartbeat`.
-7. Card scan dan face verify memakai bearer secret yang sama.
-8. Rotasi credential dilakukan dengan pairing ulang. Kode lama dibatalkan ketika kode baru dibuat.
-9. `DISABLED` menghentikan akses sementara. `REVOKED` mencabut akses permanen dan menghapus credential aktif.
+2. Administrator membuat kode pairing. Kode berlaku 10 menit dan plaintext kode tidak disimpan di database.
+3. Laptop terminal membuka `/terminal/device` dari domain production.
+4. Pengguna memasukkan pairing code langsung di browser.
+5. Server mengonsumsi kode pairing dan membuat terminal session acak.
+6. Browser menerima session cookie `HttpOnly`, `Secure`, `SameSite=Strict`.
+7. JavaScript browser tidak dapat membaca credential sesi.
+8. Heartbeat, card scan, dan face verify memakai session cookie yang sama ke API production.
+9. Pairing ulang otomatis mencabut sesi terminal sebelumnya.
+10. `DISABLED` dan `REVOKED` mencabut sesi terminal aktif.
 
-## Pairing dari Node bridge
+## Runtime production
 
-Buat file lokal `.env.device.pairing` yang tidak pernah di-commit:
+Terminal browser memakai endpoint production yang sama:
 
-```env
-ATTENDANCE_API_URL=https://attendance.example.sch.id
-PAIRING_CODE=A12-XXXXX-XXXXX
-DEVICE_PROTOCOL_VERSION=v1
-DEVICE_HARDWARE_MODEL=Mini PC + Arduino Bridge
-DEVICE_FIRMWARE_VERSION=1.0.0
+```text
+POST /api/device/v1/browser-pair
+POST /api/device/v1/heartbeat
+POST /api/device/v1/card-scan
+POST /api/device/v1/face-verify
 ```
 
-Lalu:
+Semua database, jadwal, identitas siswa, face profile, verifikasi wajah, audit log, dan keputusan absensi tetap server-authoritative.
 
-```bash
-npm run device:pair:env
-```
+## RFID
 
-Script menyimpan credential hasil pairing ke `.env.device` dan tidak mencetak plaintext secret ke terminal.
+Reader USB keyboard-wedge bekerja langsung tanpa driver aplikasi tambahan. Reader bertindak seperti keyboard dan mengirim UID diikuti Enter.
 
-## Header autentikasi setelah pairing
+Untuk Arduino atau reader serial, terminal menggunakan Web Serial bawaan Chrome/Edge melalui HTTPS. User memilih COM port dari browser dan data UID dibaca langsung oleh halaman `/terminal/device`.
 
-```http
-Authorization: Bearer <DEVICE_SECRET>
-X-Device-Id: <DEVICE_ID>
-X-Protocol-Version: v1
-```
+Tidak ada HTTP server di localhost dan tidak ada credential device yang disimpan di JavaScript.
+
+## Kamera
+
+Browser memakai `getUserMedia()` melalui HTTPS. Preview kamera dapat tampil real-time, tetapi frame hanya dikirim ke face-service setelah RFID valid dan backend membuat verification transaction.
 
 ## Heartbeat
 
-Perangkat dianjurkan mengirim heartbeat setiap 30-60 detik:
+Terminal mengirim heartbeat setiap 30 detik selama halaman production aktif. Dashboard menganggap perangkat online bila request terautentikasi diterima dalam 90 detik terakhir.
 
-```json
-{
-  "firmwareVersion": "1.0.0",
-  "hardwareModel": "Mini PC + Arduino Bridge",
-  "bridgeVersion": "bridge-v1",
-  "queueDepth": 0,
-  "uptimeSeconds": 3600,
-  "localTime": "2026-09-21T12:30:00+07:00"
-}
-```
+## Headless hardware
 
-Dashboard menganggap terminal online bila ada request terautentikasi dalam 90 detik terakhir.
+Endpoint legacy `POST /api/device/v1/pair` dan header bearer device masih dipertahankan untuk controller headless seperti ESP32/gateway khusus yang tidak menjalankan browser.
 
-## Offline queue
-
-Client terminal wajib memberi setiap transaksi `requestId` yang stabil dan unik. Jika koneksi terputus, request disimpan lokal dan dikirim ulang dengan `requestId` yang sama saat koneksi pulih. Backend sudah menggunakan request identity/idempotency pada event dan transaksi absensi agar retry tidak mencatat kehadiran dua kali.
+Mode headless dan browser terminal saling merotasi credential: jika salah satu dipair ulang, credential runtime sebelumnya dicabut agar hanya runtime terbaru yang aktif.
 
 ## Security rules
 
-- Pairing code bersifat sekali pakai dan kedaluwarsa.
-- Pairing code disimpan sebagai SHA-256 hash.
-- Device secret hanya dikembalikan sekali kepada perangkat.
-- Database hanya menyimpan hash device secret.
-- Rotasi credential mengganti secret secara atomik.
+- Pairing code sekali pakai dan kedaluwarsa 10 menit.
+- Pairing code hanya disimpan sebagai SHA-256 hash.
+- Browser terminal menggunakan session token acak yang hanya disimpan sebagai hash di database.
+- Session token browser dikirim sebagai cookie HttpOnly + Secure + SameSite Strict.
+- Session browser berlaku 30 hari dan dapat dirotasi kapan saja.
+- Pair ulang mencabut sesi browser lama.
 - Disabled/revoked device tidak dapat mengakses device API.
-- Pairing, rotasi, status change, dan revoke masuk ke audit log.
+- Pairing, rotasi, status change, dan revoke masuk audit log.
 - Portal admin tetap dilindungi autentikasi dan `STAFF_PORTAL_ENABLED`.
