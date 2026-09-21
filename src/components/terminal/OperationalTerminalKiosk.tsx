@@ -172,7 +172,7 @@ function StatusChip({
   detail: string;
 }) {
   return (
-    <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/7 px-3 py-2">
+    <div className="flex min-w-0 items-center gap-2 rounded-full border border-white/10 bg-white/[0.07] px-3 py-2">
       <span
         className={`h-2.5 w-2.5 shrink-0 rounded-full ${
           ready
@@ -604,6 +604,12 @@ export function OperationalTerminalKiosk() {
     setCameraReady(false);
     setTerminalStarted(false);
     processingRef.current = false;
+    setStudent(null);
+    setSession(null);
+    setResultCode(null);
+    setVerificationScore(null);
+    setFaceAttempt(0);
+    setLastRfidUid(null);
     setStage("boot");
     setMessage("Aktifkan terminal untuk memulai kamera dan pembacaan RFID.");
     if (document.fullscreenElement) {
