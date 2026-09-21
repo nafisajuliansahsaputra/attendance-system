@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { SchoolLogo } from "@/components/school/SchoolLogo";
 import {
   SCHOOL,
   attendanceOutcomeLabel,
