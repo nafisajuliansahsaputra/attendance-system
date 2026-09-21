@@ -218,9 +218,7 @@ export function SchoolPortalShell({
     <div className="flex h-full flex-col">
       <div className="border-b border-white/10 px-5 py-5">
         <Link href={mode === "management" ? "/dashboard" : "/teacher"} className="flex items-center gap-3" onClick={() => setMobileOpen(false)}>
-          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-white/15 bg-white/10 text-white shadow-inner">
-            <PortalIcon name="school" className="h-6 w-6" />
-          </span>
+          <SchoolLogo size={44} className="ring-white/15" />
           <span className="min-w-0">
             <span className="block truncate text-[13px] font-bold leading-5 text-white">{SCHOOL.shortName}</span>
             <span className="block truncate text-[11px] text-emerald-100/70">{SCHOOL.systemName}</span>
