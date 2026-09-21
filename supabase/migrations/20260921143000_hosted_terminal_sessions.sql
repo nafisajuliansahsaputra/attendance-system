@@ -35,6 +35,7 @@ grant select, insert, update, delete on table public.device_terminal_sessions to
 create or replace function public.claim_browser_terminal_pairing(
   p_code_hash text,
   p_session_hash text,
+  p_device_secret_hash text,
   p_protocol_version text,
   p_client_metadata jsonb default '{}'::jsonb
 )
@@ -56,6 +57,10 @@ begin
 
   if p_session_hash is null or p_session_hash !~ '^sha256:[0-9a-f]{64}$' then
     raise exception 'INVALID_TERMINAL_SESSION_HASH';
+  end if;
+
+  if p_device_secret_hash is null or p_device_secret_hash !~ '^sha256:[0-9a-f]{64}$' then
+    raise exception 'INVALID_DEVICE_SECRET_HASH';
   end if;
 
   if p_protocol_version is null or btrim(p_protocol_version) = '' then
@@ -125,7 +130,7 @@ begin
     );
 
   update public.devices
-  set secret_hash = null,
+  set secret_hash = p_device_secret_hash,
       paired_at = coalesce(paired_at, now()),
       credential_rotated_at = case
         when v_had_credentials then now()
@@ -174,7 +179,10 @@ begin
   ) values (
     v_pairing.institution_id,
     v_pairing.created_by,
-    case when v_had_credentials then 'DEVICE_CREDENTIAL_ROTATED' else 'DEVICE_PAIRED' end,
+    case
+      when v_had_credentials then 'DEVICE_CREDENTIAL_ROTATED'
+      else 'DEVICE_PAIRED'
+    end,
     'device',
     v_device.id,
     jsonb_build_object(
@@ -271,355 +279,6 @@ begin
 end;
 $$;
 
-create or replace function public.get_admin_device_directory(
-  p_actor_user_id uuid
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public, pg_temp
-as $$
-declare
-  v_institution_id uuid;
-  v_role text;
-begin
-  select p.institution_id, p.role
-    into v_institution_id, v_role
-  from public.profiles p
-  where p.user_id = p_actor_user_id
-    and p.is_active = true;
-
-  if v_institution_id is null or v_role not in ('SYSTEM_ADMIN', 'OPERATOR') then
-    raise exception 'FORBIDDEN_DEVICE_DIRECTORY';
-  end if;
-
-  update public.device_terminal_sessions
-  set status = 'EXPIRED'
-  where status = 'ACTIVE'
-    and expires_at <= now();
-
-  return coalesce((
-    select jsonb_agg(
-      jsonb_build_object(
-        'id', d.id,
-        'code', d.code,
-        'name', d.name,
-        'deviceType', d.device_type,
-        'status', d.status,
-        'protocolVersion', d.protocol_version,
-        'location', d.location,
-        'lastSeenAt', d.last_seen_at,
-        'lastHeartbeatAt', d.last_heartbeat_at,
-        'pairedAt', d.paired_at,
-        'credentialRotatedAt', d.credential_rotated_at,
-        'secretConfigured',
-          d.secret_hash is not null
-          or exists (
-            select 1
-            from public.device_terminal_sessions ts
-            where ts.device_id = d.id
-              and ts.status = 'ACTIVE'
-              and ts.expires_at > now()
-          ),
-        'pairingStatus', case
-          when d.status = 'REVOKED' then 'REVOKED'
-          when exists (
-            select 1 from public.device_pairing_sessions ps
-            where ps.device_id = d.id
-              and ps.status = 'ACTIVE'
-              and ps.expires_at > now()
-          ) then 'WAITING'
-          when d.secret_hash is not null
-            or exists (
-              select 1
-              from public.device_terminal_sessions ts
-              where ts.device_id = d.id
-                and ts.status = 'ACTIVE'
-                and ts.expires_at > now()
-            ) then 'PAIRED'
-          else 'UNPAIRED'
-        end,
-        'connectionStatus', case
-          when d.status <> 'ACTIVE' then 'INACTIVE'
-          when d.last_seen_at is null then 'NEVER'
-          when d.last_seen_at >= now() - interval '90 seconds' then 'ONLINE'
-          else 'OFFLINE'
-        end,
-        'pairingExpiresAt', (
-          select ps.expires_at
-          from public.device_pairing_sessions ps
-          where ps.device_id = d.id
-            and ps.status = 'ACTIVE'
-            and ps.expires_at > now()
-          order by ps.created_at desc
-          limit 1
-        ),
-        'createdAt', d.created_at,
-        'metadata', d.metadata,
-        'pendingTransactions', (
-          select count(*)
-          from public.device_verification_transactions vt
-          where vt.device_id = d.id
-            and vt.status = 'PENDING'
-            and vt.expires_at > now()
-        ),
-        'recentErrors24h', (
-          select count(*)
-          from public.device_events de
-          where de.device_id = d.id
-            and de.event_type = 'DEVICE_ERROR'
-            and de.received_at >= now() - interval '24 hours'
-        ),
-        'lastEventAt', (
-          select max(de.received_at)
-          from public.device_events de
-          where de.device_id = d.id
-        ),
-        'lastAttendanceAt', (
-          select max(ar.accepted_at)
-          from public.attendance_records ar
-          where ar.device_id = d.id
-        )
-      )
-      order by d.name, d.code
-    )
-    from public.devices d
-    where d.institution_id = v_institution_id
-  ), '[]'::jsonb);
-end;
-$$;
-
-create or replace function public.create_admin_device_pairing(
-  p_actor_user_id uuid,
-  p_device_id uuid,
-  p_code_hash text,
-  p_expires_at timestamptz,
-  p_note text default null
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public, pg_temp
-as $$
-declare
-  v_institution_id uuid;
-  v_role text;
-  v_device public.devices%rowtype;
-  v_pairing public.device_pairing_sessions%rowtype;
-  v_mode text;
-begin
-  select p.institution_id, p.role
-    into v_institution_id, v_role
-  from public.profiles p
-  where p.user_id = p_actor_user_id
-    and p.is_active = true;
-
-  if v_institution_id is null or v_role <> 'SYSTEM_ADMIN' then
-    raise exception 'FORBIDDEN_ADMIN_ONLY';
-  end if;
-
-  if p_code_hash is null or p_code_hash !~ '^sha256:[0-9a-f]{64}$' then
-    raise exception 'INVALID_PAIRING_CODE_HASH';
-  end if;
-
-  if p_expires_at is null
-     or p_expires_at <= now() + interval '2 minutes'
-     or p_expires_at > now() + interval '30 minutes' then
-    raise exception 'INVALID_PAIRING_EXPIRY';
-  end if;
-
-  select d.* into v_device
-  from public.devices d
-  where d.id = p_device_id
-    and d.institution_id = v_institution_id
-  for update;
-
-  if not found then
-    raise exception 'DEVICE_NOT_FOUND';
-  end if;
-
-  if v_device.status = 'REVOKED' then
-    raise exception 'REVOKED_DEVICE_CANNOT_PAIR';
-  end if;
-
-  update public.device_pairing_sessions
-  set status = case when expires_at <= now() then 'EXPIRED' else 'CANCELLED' end,
-      cancelled_at = case when expires_at > now() then now() else cancelled_at end
-  where device_id = p_device_id
-    and status = 'ACTIVE';
-
-  v_mode := case
-    when v_device.secret_hash is not null
-      or exists (
-        select 1
-        from public.device_terminal_sessions ts
-        where ts.device_id = v_device.id
-          and ts.status = 'ACTIVE'
-          and ts.expires_at > now()
-      )
-    then 'ROTATE'
-    else 'PAIR'
-  end;
-
-  insert into public.device_pairing_sessions (
-    institution_id,
-    device_id,
-    code_hash,
-    mode,
-    status,
-    created_by,
-    expires_at
-  ) values (
-    v_institution_id,
-    p_device_id,
-    p_code_hash,
-    v_mode,
-    'ACTIVE',
-    p_actor_user_id,
-    p_expires_at
-  )
-  returning * into v_pairing;
-
-  insert into public.audit_logs (
-    institution_id,
-    actor_user_id,
-    action,
-    entity_type,
-    entity_id,
-    after_data,
-    reason
-  ) values (
-    v_institution_id,
-    p_actor_user_id,
-    'DEVICE_PAIRING_CODE_CREATED',
-    'device',
-    p_device_id,
-    jsonb_build_object(
-      'pairingSessionId', v_pairing.id,
-      'mode', v_pairing.mode,
-      'expiresAt', v_pairing.expires_at
-    ),
-    nullif(btrim(p_note), '')
-  );
-
-  return jsonb_build_object(
-    'pairingSessionId', v_pairing.id,
-    'deviceId', v_pairing.device_id,
-    'mode', v_pairing.mode,
-    'expiresAt', v_pairing.expires_at
-  );
-end;
-$$;
-
-create or replace function public.set_admin_device_status(
-  p_actor_user_id uuid,
-  p_device_id uuid,
-  p_status text,
-  p_note text default null
-)
-returns jsonb
-language plpgsql
-security invoker
-set search_path = public, pg_temp
-as $$
-declare
-  v_institution_id uuid;
-  v_role text;
-  v_before public.devices%rowtype;
-  v_after public.devices%rowtype;
-begin
-  select p.institution_id, p.role
-    into v_institution_id, v_role
-  from public.profiles p
-  where p.user_id = p_actor_user_id
-    and p.is_active = true;
-
-  if v_institution_id is null or v_role <> 'SYSTEM_ADMIN' then
-    raise exception 'FORBIDDEN_ADMIN_ONLY';
-  end if;
-
-  if p_status not in ('ACTIVE', 'DISABLED', 'REVOKED') then
-    raise exception 'INVALID_DEVICE_STATUS';
-  end if;
-
-  select d.* into v_before
-  from public.devices d
-  where d.id = p_device_id
-    and d.institution_id = v_institution_id
-  for update;
-
-  if not found then
-    raise exception 'DEVICE_NOT_FOUND';
-  end if;
-
-  if v_before.status = 'REVOKED' and p_status <> 'REVOKED' then
-    raise exception 'REVOKED_DEVICE_CANNOT_REACTIVATE';
-  end if;
-
-  update public.devices d
-  set status = p_status,
-      secret_hash = case when p_status = 'REVOKED' then null else d.secret_hash end,
-      updated_at = now()
-  where d.id = p_device_id
-  returning d.* into v_after;
-
-  if p_status in ('DISABLED', 'REVOKED') then
-    update public.device_verification_transactions
-    set status = 'CANCELLED'
-    where device_id = p_device_id
-      and status = 'PENDING';
-
-    update public.device_pairing_sessions
-    set status = 'CANCELLED',
-        cancelled_at = now()
-    where device_id = p_device_id
-      and status = 'ACTIVE';
-
-    update public.device_terminal_sessions
-    set status = 'REVOKED',
-        revoked_at = now()
-    where device_id = p_device_id
-      and status = 'ACTIVE';
-  end if;
-
-  if v_before.status is distinct from v_after.status then
-    insert into public.audit_logs (
-      institution_id,
-      actor_user_id,
-      action,
-      entity_type,
-      entity_id,
-      before_data,
-      after_data,
-      reason
-    ) values (
-      v_institution_id,
-      p_actor_user_id,
-      'DEVICE_STATUS_CHANGED',
-      'device',
-      p_device_id,
-      jsonb_build_object('status', v_before.status),
-      jsonb_build_object('status', v_after.status),
-      nullif(btrim(p_note), '')
-    );
-  end if;
-
-  return jsonb_build_object(
-    'id', v_after.id,
-    'status', v_after.status,
-    'secretConfigured',
-      v_after.secret_hash is not null
-      or exists (
-        select 1
-        from public.device_terminal_sessions ts
-        where ts.device_id = v_after.id
-          and ts.status = 'ACTIVE'
-          and ts.expires_at > now()
-      )
-  );
-end;
-$$;
-
 create or replace function public.claim_device_pairing(
   p_code_hash text,
   p_secret_hash text,
@@ -630,7 +289,7 @@ returns jsonb
 language plpgsql
 security invoker
 set search_path = public, pg_temp
-as $
+as $$
 declare
   v_pairing public.device_pairing_sessions%rowtype;
   v_device public.devices%rowtype;
@@ -638,29 +297,11 @@ declare
   v_had_browser_session boolean;
   v_metadata jsonb;
 begin
-  if p_code_hash is null or p_code_hash !~ '^sha256:[0-9a-f]{64}(text, text, text, jsonb) from public;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
-grant execute on function public.claim_browser_terminal_pairing(text, text, text, jsonb) to service_role;
-
-revoke all on function public.authenticate_terminal_session(text) from public;
-revoke all on function public.authenticate_terminal_session(text) from anon;
-revoke all on function public.authenticate_terminal_session(text) from authenticated;
-grant execute on function public.authenticate_terminal_session(text) to service_role;
- then
+  if p_code_hash is null or p_code_hash !~ '^sha256:[0-9a-f]{64}$' then
     raise exception 'PAIRING_CODE_INVALID';
   end if;
 
-  if p_secret_hash is null or p_secret_hash !~ '^sha256:[0-9a-f]{64}(text, text, text, jsonb) from public;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
-grant execute on function public.claim_browser_terminal_pairing(text, text, text, jsonb) to service_role;
-
-revoke all on function public.authenticate_terminal_session(text) from public;
-revoke all on function public.authenticate_terminal_session(text) from anon;
-revoke all on function public.authenticate_terminal_session(text) from authenticated;
-grant execute on function public.authenticate_terminal_session(text) to service_role;
- then
+  if p_secret_hash is null or p_secret_hash !~ '^sha256:[0-9a-f]{64}$' then
     raise exception 'INVALID_DEVICE_SECRET_HASH';
   end if;
 
@@ -788,14 +429,126 @@ grant execute on function public.authenticate_terminal_session(text) to service_
     'credentialRotated', v_had_secret or v_had_browser_session
   );
 end;
-$;
+$$;
 
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from public;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
-revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
-grant execute on function public.claim_browser_terminal_pairing(text, text, text, jsonb) to service_role;
+create or replace function public.set_admin_device_status(
+  p_actor_user_id uuid,
+  p_device_id uuid,
+  p_status text,
+  p_note text default null
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $$
+declare
+  v_institution_id uuid;
+  v_role text;
+  v_before public.devices%rowtype;
+  v_after public.devices%rowtype;
+begin
+  select p.institution_id, p.role
+    into v_institution_id, v_role
+  from public.profiles p
+  where p.user_id = p_actor_user_id
+    and p.is_active = true;
+
+  if v_institution_id is null or v_role <> 'SYSTEM_ADMIN' then
+    raise exception 'FORBIDDEN_ADMIN_ONLY';
+  end if;
+
+  if p_status not in ('ACTIVE', 'DISABLED', 'REVOKED') then
+    raise exception 'INVALID_DEVICE_STATUS';
+  end if;
+
+  select d.* into v_before
+  from public.devices d
+  where d.id = p_device_id
+    and d.institution_id = v_institution_id
+  for update;
+
+  if not found then
+    raise exception 'DEVICE_NOT_FOUND';
+  end if;
+
+  if v_before.status = 'REVOKED' and p_status <> 'REVOKED' then
+    raise exception 'REVOKED_DEVICE_CANNOT_REACTIVATE';
+  end if;
+
+  update public.devices d
+  set status = p_status,
+      secret_hash = case when p_status = 'REVOKED' then null else d.secret_hash end,
+      updated_at = now()
+  where d.id = p_device_id
+  returning d.* into v_after;
+
+  if p_status in ('DISABLED', 'REVOKED') then
+    update public.device_verification_transactions
+    set status = 'CANCELLED'
+    where device_id = p_device_id
+      and status = 'PENDING';
+
+    update public.device_pairing_sessions
+    set status = 'CANCELLED',
+        cancelled_at = now()
+    where device_id = p_device_id
+      and status = 'ACTIVE';
+
+    update public.device_terminal_sessions
+    set status = 'REVOKED',
+        revoked_at = now()
+    where device_id = p_device_id
+      and status = 'ACTIVE';
+  end if;
+
+  if v_before.status is distinct from v_after.status then
+    insert into public.audit_logs (
+      institution_id,
+      actor_user_id,
+      action,
+      entity_type,
+      entity_id,
+      before_data,
+      after_data,
+      reason
+    ) values (
+      v_institution_id,
+      p_actor_user_id,
+      'DEVICE_STATUS_CHANGED',
+      'device',
+      p_device_id,
+      jsonb_build_object(
+        'status', v_before.status,
+        'secretConfigured', v_before.secret_hash is not null
+      ),
+      jsonb_build_object(
+        'status', v_after.status,
+        'secretConfigured', v_after.secret_hash is not null
+      ),
+      nullif(btrim(p_note), '')
+    );
+  end if;
+
+  return jsonb_build_object(
+    'id', v_after.id,
+    'status', v_after.status,
+    'secretConfigured', v_after.secret_hash is not null
+  );
+end;
+$$;
+
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, text, jsonb) from public;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, text, jsonb) from anon;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, text, jsonb) from authenticated;
+grant execute on function public.claim_browser_terminal_pairing(text, text, text, text, jsonb) to service_role;
 
 revoke all on function public.authenticate_terminal_session(text) from public;
 revoke all on function public.authenticate_terminal_session(text) from anon;
 revoke all on function public.authenticate_terminal_session(text) from authenticated;
 grant execute on function public.authenticate_terminal_session(text) to service_role;
+
+revoke all on function public.claim_device_pairing(text, text, text, jsonb) from public;
+revoke all on function public.claim_device_pairing(text, text, text, jsonb) from anon;
+revoke all on function public.claim_device_pairing(text, text, text, jsonb) from authenticated;
+grant execute on function public.claim_device_pairing(text, text, text, jsonb) to service_role;
