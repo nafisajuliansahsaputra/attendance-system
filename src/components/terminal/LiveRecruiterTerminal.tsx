@@ -313,9 +313,7 @@ export function LiveRecruiterTerminal() {
       <div className="mx-auto w-full max-w-[1480px]">
         <header className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white/90 px-5 py-4 shadow-sm backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">
-              A12
-            </span>
+            <SchoolLogo size={44} priority />
             <div>
               <p className="text-sm font-semibold">{SCHOOL.name}</p>
               <p className="text-xs text-[var(--muted)]">Terminal Uji Absensi Siswa</p>
