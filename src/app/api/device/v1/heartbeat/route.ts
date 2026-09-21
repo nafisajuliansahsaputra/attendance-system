@@ -1,11 +1,22 @@
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import {
   DeviceAuthenticationError,
   authenticateDeviceRequest,
 } from "@/lib/device/authenticate-device-request";
+import { recordSupabaseDeviceHeartbeat } from "@/infrastructure/device/supabase-device";
 import { isSupabaseServerConfigured } from "@/infrastructure/supabase/server-config";
 
 export const dynamic = "force-dynamic";
+
+const heartbeatSchema = z.object({
+  firmwareVersion: z.string().trim().max(64).optional(),
+  hardwareModel: z.string().trim().max(100).optional(),
+  bridgeVersion: z.string().trim().max(64).optional(),
+  queueDepth: z.number().int().min(0).max(100000).optional(),
+  uptimeSeconds: z.number().int().min(0).max(315360000).optional(),
+  localTime: z.string().trim().max(64).optional(),
+});
 
 export async function POST(request: Request) {
   if (!isSupabaseServerConfigured()) {
@@ -17,11 +28,26 @@ export async function POST(request: Request) {
 
   try {
     const device = await authenticateDeviceRequest(request);
+    const body = await request.json().catch(() => ({}));
+    const parsed = heartbeatSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { ok: false, code: "INVALID_HEARTBEAT_REQUEST" },
+        { status: 400 },
+      );
+    }
+
+    const heartbeat = await recordSupabaseDeviceHeartbeat({
+      deviceId: device.deviceId,
+      metadata: parsed.data,
+    });
 
     return NextResponse.json({
       ok: true,
       deviceId: device.deviceId,
       protocolVersion: device.protocolVersion,
+      lastHeartbeatAt: heartbeat.lastHeartbeatAt,
       serverTime: new Date().toISOString(),
     });
   } catch (error) {
