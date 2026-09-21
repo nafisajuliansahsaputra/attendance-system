@@ -146,6 +146,17 @@ export async function POST(request: Request) {
           code: "CAPTURE_FACE",
           verificationTransactionId: transaction.transactionId,
           expiresAt: transaction.expiresAt,
+          occurredAt,
+          student: {
+            id: student.id,
+            name: student.name,
+            className: student.className,
+          },
+          session: {
+            id: session.id,
+            name: session.name,
+            type: session.type,
+          },
         },
         { status: 202 },
       );
@@ -169,10 +180,33 @@ export async function POST(request: Request) {
         code: result.outcome.code,
         accepted: result.outcome.accepted,
         feedback: result.outcome.feedback,
+        occurredAt,
+        student: result.outcome.student ?? student,
+        session: result.outcome.session ?? (session
+          ? { id: session.id, name: session.name, type: session.type }
+          : undefined),
       });
     }
 
-    return domainResponse(stage.code, parsed.data.requestId);
+    return NextResponse.json({
+      requestId: parsed.data.requestId,
+      code: stage.code,
+      occurredAt,
+      student: student
+        ? {
+            id: student.id,
+            name: student.name,
+            className: student.className,
+          }
+        : undefined,
+      session: session
+        ? {
+            id: session.id,
+            name: session.name,
+            type: session.type,
+          }
+        : undefined,
+    });
   } catch (error) {
     if (error instanceof AmbiguousAttendanceSessionError) {
       await persistSupabaseDeviceStageEvent({
