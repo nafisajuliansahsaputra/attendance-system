@@ -676,8 +676,10 @@ export function OperationalTerminalKiosk() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            bridgeVersion: "hosted-browser-terminal-v1",
+            runtimeVersion: "hosted-browser-terminal-v1",
             hardwareModel: "Browser kiosk terminal",
+            readerMode: serialConnected ? "WEB_SERIAL" : "KEYBOARD_WEDGE",
+            cameraReady,
             queueDepth: 0,
             localTime: new Date().toISOString(),
           }),
@@ -739,7 +741,7 @@ export function OperationalTerminalKiosk() {
         setMessage("Server produksi tidak dapat dihubungi.");
       }
     }
-  }, [stage, terminalStarted]);
+  }, [cameraReady, serialConnected, stage, terminalStarted]);
 
   const pairHostedTerminal = useCallback(async () => {
     const code = pairingCode.trim();
