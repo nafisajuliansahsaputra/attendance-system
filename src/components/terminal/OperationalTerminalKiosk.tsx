@@ -9,9 +9,9 @@ import {
 } from "@/application/device/operational-terminal";
 import { SCHOOL } from "@/config/school";
 
-const BRIDGE_BASE_URL = "http://127.0.0.1:8765";
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
+const HEARTBEAT_INTERVAL_MS = 30_000;
 
 type TerminalStage =
   | "boot"
@@ -23,6 +23,8 @@ type TerminalStage =
   | "warning"
   | "error";
 
+type PairingState = "checking" | "unpaired" | "paired";
+
 type StudentIdentity = {
   id?: string;
   name: string;
@@ -33,6 +35,15 @@ type SessionIdentity = {
   id?: string;
   name: string;
   type?: string;
+};
+
+type DeviceIdentity = {
+  id: string;
+  code: string;
+  name: string;
+  deviceType: string;
+  protocolVersion: string;
+  location?: string | null;
 };
 
 type CardResult = {
@@ -57,36 +68,50 @@ type FaceResult = {
   reason?: string;
 };
 
-type BridgeEvent = {
-  seq: number;
-  type: "card-reading" | "card-result" | "face-result" | "bridge-error";
-  at: string;
-  payload: CardResult & {
-    rfidUid?: string;
-    httpStatus?: number;
-    message?: string;
-  };
+type HeartbeatResponse = {
+  ok?: boolean;
+  code?: string;
+  deviceId?: string;
+  protocolVersion?: string;
+  lastHeartbeatAt?: string;
+  serverTime?: string;
+  device?: DeviceIdentity;
 };
 
-type BridgeStatus = {
-  ok: boolean;
-  bridgeVersion?: string;
-  serverOnline: boolean;
-  deviceAuthorized: boolean;
-  faceServiceConfigured: boolean;
-  busy: boolean;
-  queueDepth: number;
-  lastHeartbeatAt?: string | null;
-  lastServerTime?: string | null;
-  lastError?: string | null;
-  device?: {
-    id: string;
-    code: string;
-    name: string;
-    deviceType: string;
-    protocolVersion: string;
-  } | null;
+type BrowserPairingResponse = {
+  ok?: boolean;
+  code?: string;
+  message?: string;
+  device?: DeviceIdentity & {
+    pairedAt?: string;
+  };
+  sessionExpiresAt?: string;
 };
+
+interface WebSerialPort {
+  readable: ReadableStream<Uint8Array> | null;
+  open(options: { baudRate: number }): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface WebSerialApi {
+  requestPort(): Promise<WebSerialPort>;
+}
+
+function serialApi() {
+  return (
+    navigator as Navigator & {
+      serial?: WebSerialApi;
+    }
+  ).serial;
+}
+
+function normalizeSerialUid(value: string) {
+  return value
+    .trim()
+    .replace(/^RFID\s*[:=]\s*/i, "")
+    .trim();
+}
 
 function formatClock(date: Date) {
   return new Intl.DateTimeFormat("id-ID", {
@@ -227,36 +252,46 @@ export function OperationalTerminalKiosk() {
   const streamRef = useRef<MediaStream | null>(null);
   const resetTimerRef = useRef<number | null>(null);
   const verificationTimerRef = useRef<number | null>(null);
-  const lastEventSeqRef = useRef(0);
   const keyboardBufferRef = useRef("");
   const lastKeyboardAtRef = useRef(0);
   const processingRef = useRef(false);
+  const serialPortRef = useRef<WebSerialPort | null>(null);
+  const serialReaderRef =
+    useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const serialReadingRef = useRef(false);
 
+  const [pairingState, setPairingState] =
+    useState<PairingState>("checking");
+  const [pairingCode, setPairingCode] = useState("");
+  const [pairingPending, setPairingPending] = useState(false);
+  const [pairingError, setPairingError] = useState<string | null>(null);
+  const [device, setDevice] = useState<DeviceIdentity | null>(null);
+  const [serverOnline, setServerOnline] = useState(false);
+  const [faceServiceReady, setFaceServiceReady] = useState(false);
+  const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string | null>(null);
   const [terminalStarted, setTerminalStarted] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const [bridgeConnected, setBridgeConnected] = useState(false);
-  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus | null>(null);
+  const [serialConnected, setSerialConnected] = useState(false);
+  const [serialBaudRate, setSerialBaudRate] = useState(9600);
   const [stage, setStage] = useState<TerminalStage>("boot");
   const [clock, setClock] = useState(() => new Date());
   const [student, setStudent] = useState<StudentIdentity | null>(null);
   const [session, setSession] = useState<SessionIdentity | null>(null);
   const [resultCode, setResultCode] = useState<string | null>(null);
   const [message, setMessage] = useState(
-    "Aktifkan terminal untuk memulai kamera dan pembacaan RFID.",
+    "Memeriksa sesi terminal dengan server produksi.",
   );
   const [faceAttempt, setFaceAttempt] = useState(0);
   const [lastRfidUid, setLastRfidUid] = useState<string | null>(null);
   const [verificationScore, setVerificationScore] = useState<number | null>(null);
 
-  const deviceName =
-    bridgeStatus?.device?.name ?? "Terminal Absensi Operasional";
-  const deviceCode = bridgeStatus?.device?.code ?? "Menunggu bridge";
+  const paired = pairingState === "paired";
   const terminalReady =
+    paired &&
     terminalStarted &&
     cameraReady &&
-    bridgeConnected &&
-    Boolean(bridgeStatus?.serverOnline) &&
-    Boolean(bridgeStatus?.deviceAuthorized);
+    serverOnline &&
+    faceServiceReady;
 
   const resultPresentation = useMemo(
     () => (resultCode ? operationalTerminalMessage(resultCode) : null),
@@ -380,12 +415,12 @@ export function OperationalTerminalKiosk() {
         setFaceAttempt(attempt);
         setMessage(
           attempt === 1
-            ? "Wajah terdeteksi. Sistem sedang mencocokkan identitas."
+            ? "Wajah terdeteksi. Sistem produksi sedang mencocokkan identitas."
             : "Posisikan wajah tetap di dalam panduan. Sistem mencoba kembali.",
         );
 
         try {
-          const response = await fetch(`${BRIDGE_BASE_URL}/face-verify`, {
+          const response = await fetch("/api/device/v1/face-verify", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -394,8 +429,16 @@ export function OperationalTerminalKiosk() {
               imageBase64,
             }),
             cache: "no-store",
+            credentials: "same-origin",
           });
           const payload = (await response.json().catch(() => ({}))) as FaceResult;
+
+          if (response.status === 401) {
+            setPairingState("unpaired");
+            setDevice(null);
+            finishResult("DEVICE_NOT_AUTHORIZED", false, input.identity);
+            return;
+          }
 
           if (
             payload.retryable &&
@@ -422,18 +465,13 @@ export function OperationalTerminalKiosk() {
           );
           return;
         } catch {
-          setBridgeConnected(false);
+          setServerOnline(false);
           finishResult("FACE_SERVICE_ERROR", false, input.identity);
           return;
         }
       }
     },
-    [
-      cameraReady,
-      captureJpeg,
-      finishResult,
-      terminalStarted,
-    ],
+    [cameraReady, captureJpeg, finishResult, terminalStarted],
   );
 
   const handleCardResult = useCallback(
@@ -477,92 +515,290 @@ export function OperationalTerminalKiosk() {
     [finishResult, verifyFace],
   );
 
-  const handleBridgeEvent = useCallback(
-    (event: BridgeEvent) => {
-      lastEventSeqRef.current = Math.max(
-        lastEventSeqRef.current,
-        event.seq,
-      );
-
-      if (event.type === "card-reading") {
-        clearTimers();
-        processingRef.current = true;
-        setStudent(null);
-        setSession(null);
-        setResultCode(null);
-        setVerificationScore(null);
-        setFaceAttempt(0);
-        setLastRfidUid(event.payload.rfidUid ?? null);
-        setStage("reading");
-        setMessage("Kartu RFID terbaca. Memeriksa identitas dan jadwal...");
-        return;
-      }
-
-      if (event.type === "card-result") {
-        handleCardResult(event.payload);
-        return;
-      }
-
-      if (event.type === "bridge-error") {
-        finishResult("SYSTEM_ERROR", false, student);
-      }
-    },
-    [clearTimers, finishResult, handleCardResult, student],
-  );
-
   const submitRfid = useCallback(
     async (uid: string, source = "keyboard-wedge") => {
-      const normalized = uid.trim();
+      const normalized = normalizeSerialUid(uid);
+
       if (
+        !paired ||
         !terminalStarted ||
-        !bridgeConnected ||
+        !serverOnline ||
         processingRef.current ||
         normalized.length < 2
       ) {
         return;
       }
 
+      clearTimers();
+      processingRef.current = true;
+      setStudent(null);
+      setSession(null);
+      setResultCode(null);
+      setVerificationScore(null);
+      setFaceAttempt(0);
+      setLastRfidUid(normalized);
+      setStage("reading");
+      setMessage(
+        source === "web-serial"
+          ? "RFID serial terbaca. Memeriksa identitas dan jadwal..."
+          : "Kartu RFID terbaca. Memeriksa identitas dan jadwal...",
+      );
+
+      const requestId = `rfid-${crypto.randomUUID()}`;
+
       try {
-        const response = await fetch(`${BRIDGE_BASE_URL}/scan`, {
+        const response = await fetch("/api/device/v1/card-scan", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            requestId,
             rfidUid: normalized,
-            source,
+            occurredAt: new Date().toISOString(),
           }),
           cache: "no-store",
+          credentials: "same-origin",
         });
-        const payload = (await response.json().catch(() => ({}))) as {
-          ok?: boolean;
-          event?: BridgeEvent;
-          code?: string;
-        };
 
-        if (payload.event) {
-          handleBridgeEvent(payload.event);
-        } else if (!response.ok) {
-          setMessage(
-            payload.code === "DEVICE_BUSY"
-              ? "Terminal masih menyelesaikan transaksi sebelumnya."
-              : "RFID belum dapat diproses oleh bridge.",
-          );
+        const payload = (await response.json().catch(() => ({}))) as CardResult;
+
+        if (response.status === 401) {
+          setPairingState("unpaired");
+          setDevice(null);
+          finishResult("DEVICE_NOT_AUTHORIZED", false);
+          return;
         }
+
+        handleCardResult({
+          ...payload,
+          rfidUid: normalized,
+        });
       } catch {
-        setBridgeConnected(false);
-        setStage("error");
-        setMessage(
-          "Bridge perangkat tidak dapat dihubungi. Jalankan bridge lokal pada laptop terminal.",
-        );
+        setServerOnline(false);
+        finishResult("SYSTEM_ERROR", false);
       }
     },
     [
-      bridgeConnected,
-      handleBridgeEvent,
+      clearTimers,
+      finishResult,
+      handleCardResult,
+      paired,
+      serverOnline,
       terminalStarted,
     ],
   );
 
+  const disconnectSerial = useCallback(async () => {
+    serialReadingRef.current = false;
+
+    if (serialReaderRef.current) {
+      await serialReaderRef.current.cancel().catch(() => undefined);
+      serialReaderRef.current.releaseLock();
+      serialReaderRef.current = null;
+    }
+
+    if (serialPortRef.current) {
+      await serialPortRef.current.close().catch(() => undefined);
+      serialPortRef.current = null;
+    }
+
+    setSerialConnected(false);
+  }, []);
+
+  const connectSerial = useCallback(async () => {
+    const api = serialApi();
+    if (!api) {
+      setMessage(
+        "Browser ini tidak mendukung Web Serial. Gunakan Chrome/Edge desktop atau reader USB keyboard-wedge.",
+      );
+      return;
+    }
+
+    try {
+      await disconnectSerial();
+      const port = await api.requestPort();
+      await port.open({ baudRate: serialBaudRate });
+      serialPortRef.current = port;
+      serialReadingRef.current = true;
+      setSerialConnected(true);
+      setMessage("Reader serial terhubung dan siap menerima UID RFID.");
+
+      const reader = port.readable?.getReader();
+      if (!reader) {
+        throw new Error("SERIAL_READER_UNAVAILABLE");
+      }
+
+      serialReaderRef.current = reader;
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (serialReadingRef.current) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        if (!value) continue;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split(/\r?\n/);
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const uid = normalizeSerialUid(line);
+          if (uid.length >= 2) {
+            await submitRfid(uid, "web-serial");
+          }
+        }
+      }
+    } catch (error) {
+      if (serialReadingRef.current) {
+        setMessage(
+          error instanceof Error && error.name === "NotFoundError"
+            ? "Pemilihan port dibatalkan."
+            : "Reader serial gagal dihubungkan. Periksa kabel, COM port, dan baud rate.",
+        );
+      }
+    } finally {
+      serialReadingRef.current = false;
+      if (serialReaderRef.current) {
+        serialReaderRef.current.releaseLock();
+        serialReaderRef.current = null;
+      }
+      setSerialConnected(false);
+    }
+  }, [disconnectSerial, serialBaudRate, submitRfid]);
+
+  const refreshProductionStatus = useCallback(async () => {
+    try {
+      const [heartbeatResponse, healthResponse] = await Promise.all([
+        fetch("/api/device/v1/heartbeat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            runtimeVersion: "hosted-browser-terminal-v1",
+            hardwareModel: "Browser kiosk terminal",
+            readerMode: serialConnected ? "WEB_SERIAL" : "KEYBOARD_WEDGE",
+            cameraReady,
+            queueDepth: 0,
+            localTime: new Date().toISOString(),
+          }),
+          cache: "no-store",
+          credentials: "same-origin",
+        }),
+        fetch("/api/health", {
+          cache: "no-store",
+          credentials: "same-origin",
+        }).catch(() => null),
+      ]);
+
+      setServerOnline(true);
+
+      if (healthResponse?.ok) {
+        const health = (await healthResponse.json().catch(() => null)) as {
+          readiness?: { faceServiceConfigured?: boolean };
+        } | null;
+        setFaceServiceReady(Boolean(health?.readiness?.faceServiceConfigured));
+      } else {
+        setFaceServiceReady(false);
+      }
+
+      if (heartbeatResponse.status === 401) {
+        setPairingState("unpaired");
+        setDevice(null);
+        setLastHeartbeatAt(null);
+        if (!terminalStarted) {
+          setStage("boot");
+          setMessage(
+            "Terminal belum dipasangkan. Masukkan kode pairing dari dashboard administrator.",
+          );
+        }
+        return;
+      }
+
+      const heartbeat =
+        (await heartbeatResponse.json().catch(() => ({}))) as HeartbeatResponse;
+
+      if (!heartbeatResponse.ok || !heartbeat.ok) {
+        setPairingState("unpaired");
+        setDevice(null);
+        return;
+      }
+
+      setPairingState("paired");
+      if (heartbeat.device) setDevice(heartbeat.device);
+      setLastHeartbeatAt(heartbeat.lastHeartbeatAt ?? null);
+
+      if (!terminalStarted && stage === "boot") {
+        setMessage(
+          "Sesi produksi aktif. Nyalakan kamera untuk memulai terminal absensi.",
+        );
+      }
+    } catch {
+      setServerOnline(false);
+      setFaceServiceReady(false);
+      if (!terminalStarted) {
+        setMessage("Server produksi tidak dapat dihubungi.");
+      }
+    }
+  }, [cameraReady, serialConnected, stage, terminalStarted]);
+
+  const pairHostedTerminal = useCallback(async () => {
+    const code = pairingCode.trim();
+    if (code.length < 8) {
+      setPairingError("Masukkan kode pairing yang tampil di dashboard administrator.");
+      return;
+    }
+
+    setPairingPending(true);
+    setPairingError(null);
+
+    try {
+      const response = await fetch("/api/device/v1/browser-pair", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          pairingCode: code,
+          protocolVersion: "v1",
+          client: {
+            browser: navigator.userAgent,
+            platform: navigator.platform,
+            screen: `${window.screen.width}x${window.screen.height}`,
+          },
+        }),
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+
+      const payload =
+        (await response.json().catch(() => ({}))) as BrowserPairingResponse;
+
+      if (!response.ok || !payload.ok || !payload.device) {
+        setPairingError(
+          payload.message ??
+            "Pairing gagal. Pastikan kode masih berlaku dan terminal berstatus aktif.",
+        );
+        return;
+      }
+
+      setPairingState("paired");
+      setDevice(payload.device);
+      setPairingCode("");
+      setStage("boot");
+      setMessage(
+        "Terminal berhasil dipasangkan ke server produksi. Aktifkan kamera untuk mulai absensi.",
+      );
+      await refreshProductionStatus();
+    } catch {
+      setServerOnline(false);
+      setPairingError("Server produksi tidak dapat dihubungi.");
+    } finally {
+      setPairingPending(false);
+    }
+  }, [pairingCode, refreshProductionStatus]);
+
   const startCamera = useCallback(async () => {
+    if (!paired) {
+      setMessage("Pasangkan terminal terlebih dahulu.");
+      return;
+    }
+
     try {
       streamRef.current?.getTracks().forEach((track) => track.stop());
 
@@ -598,7 +834,7 @@ export function OperationalTerminalKiosk() {
         "Kamera tidak dapat dibuka. Berikan izin kamera pada browser lalu coba lagi.",
       );
     }
-  }, []);
+  }, [paired]);
 
   const stopTerminal = useCallback(() => {
     clearTimers();
@@ -614,11 +850,16 @@ export function OperationalTerminalKiosk() {
     setFaceAttempt(0);
     setLastRfidUid(null);
     setStage("boot");
-    setMessage("Aktifkan terminal untuk memulai kamera dan pembacaan RFID.");
+    setMessage(
+      paired
+        ? "Sesi produksi aktif. Nyalakan kamera untuk memulai terminal absensi."
+        : "Terminal belum dipasangkan.",
+    );
     if (document.fullscreenElement) {
       void document.exitFullscreen().catch(() => undefined);
     }
-  }, [clearTimers]);
+  }, [clearTimers, paired]);
+
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -628,70 +869,17 @@ export function OperationalTerminalKiosk() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
+    void refreshProductionStatus();
+    const timer = window.setInterval(
+      () => void refreshProductionStatus(),
+      HEARTBEAT_INTERVAL_MS,
+    );
 
-    async function pollStatus() {
-      try {
-        const response = await fetch(`${BRIDGE_BASE_URL}/status`, {
-          cache: "no-store",
-        });
-        if (!response.ok) throw new Error("BRIDGE_STATUS_FAILED");
-        const payload = (await response.json()) as BridgeStatus;
-        if (cancelled) return;
-        setBridgeConnected(true);
-        setBridgeStatus(payload);
-      } catch {
-        if (cancelled) return;
-        setBridgeConnected(false);
-        setBridgeStatus(null);
-      }
-    }
-
-    void pollStatus();
-    const timer = window.setInterval(() => void pollStatus(), 2000);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, []);
+    return () => window.clearInterval(timer);
+  }, [refreshProductionStatus]);
 
   useEffect(() => {
-    if (!terminalStarted) return;
-
-    let cancelled = false;
-
-    async function pollEvents() {
-      try {
-        const response = await fetch(
-          `${BRIDGE_BASE_URL}/events?after=${lastEventSeqRef.current}`,
-          { cache: "no-store" },
-        );
-        if (!response.ok) return;
-        const payload = (await response.json()) as {
-          events?: BridgeEvent[];
-        };
-        if (cancelled) return;
-
-        for (const event of payload.events ?? []) {
-          if (event.seq > lastEventSeqRef.current) {
-            handleBridgeEvent(event);
-          }
-        }
-      } catch {
-        // Status polling owns bridge connectivity state.
-      }
-    }
-
-    const timer = window.setInterval(() => void pollEvents(), 350);
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [handleBridgeEvent, terminalStarted]);
-
-  useEffect(() => {
-    if (!terminalStarted) return;
+    if (!terminalStarted || !paired) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.ctrlKey || event.altKey || event.metaKey) return;
@@ -707,7 +895,7 @@ export function OperationalTerminalKiosk() {
         keyboardBufferRef.current = "";
         if (uid.length >= 2) {
           event.preventDefault();
-          void submitRfid(uid);
+          void submitRfid(uid, "keyboard-wedge");
         }
         return;
       }
@@ -719,16 +907,41 @@ export function OperationalTerminalKiosk() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [submitRfid, terminalStarted]);
+  }, [paired, submitRfid, terminalStarted]);
 
   useEffect(() => {
     return () => {
       clearTimers();
       streamRef.current?.getTracks().forEach((track) => track.stop());
+      serialReadingRef.current = false;
+      if (serialReaderRef.current) {
+        void serialReaderRef.current.cancel().catch(() => undefined);
+      }
+      if (serialPortRef.current) {
+        void serialPortRef.current.close().catch(() => undefined);
+      }
     };
   }, [clearTimers]);
 
   const prompt = (() => {
+    if (pairingState === "checking") {
+      return {
+        eyebrow: "SERVER PRODUKSI",
+        title: "Memeriksa terminal...",
+        detail: "Sesi perangkat sedang diverifikasi ke server.",
+        icon: "···",
+        tone: "neutral" as OperationalTerminalTone,
+      };
+    }
+    if (pairingState === "unpaired") {
+      return {
+        eyebrow: "PAIRING DIPERLUKAN",
+        title: "Hubungkan terminal",
+        detail: "Masukkan kode pairing dari dashboard administrator.",
+        icon: "↔",
+        tone: "warning" as OperationalTerminalTone,
+      };
+    }
     if (stage === "idle") {
       return {
         eyebrow: "SIAP MENERIMA ABSENSI",
@@ -742,7 +955,7 @@ export function OperationalTerminalKiosk() {
       return {
         eyebrow: "RFID TERDETEKSI",
         title: "Memeriksa kartu...",
-        detail: "Identitas siswa dan sesi absensi sedang diproses.",
+        detail: "Identitas siswa dan sesi absensi sedang diproses di server.",
         icon: "RF",
         tone: "neutral" as OperationalTerminalTone,
       };
@@ -785,7 +998,9 @@ export function OperationalTerminalKiosk() {
     return {
       eyebrow: "TERMINAL OPERASIONAL",
       title: "Aktifkan terminal",
-      detail: "Kamera dan reader RFID akan disiapkan untuk mode kiosk.",
+      detail: paired
+        ? "Kamera dan reader RFID akan digunakan langsung oleh browser production."
+        : "Pasangkan terminal dengan server produksi terlebih dahulu.",
       icon: "A12",
       tone: "neutral" as OperationalTerminalTone,
     };
@@ -806,29 +1021,32 @@ export function OperationalTerminalKiosk() {
             <div className="min-w-0">
               <p className="truncate text-sm font-bold sm:text-base">{SCHOOL.name}</p>
               <p className="truncate text-xs text-emerald-100/65">
-                {deviceName} · {deviceCode}
+                {device?.name ?? "Terminal Absensi Operasional"} ·{" "}
+                {device?.code ?? "Belum dipasangkan"}
               </p>
             </div>
           </div>
 
           <div className="flex flex-1 flex-wrap justify-end gap-2 lg:flex-none">
             <StatusChip
-              label="Bridge"
-              ready={bridgeConnected}
-              detail={bridgeConnected ? "Terhubung" : "Tidak terhubung"}
+              label="Server"
+              ready={serverOnline}
+              detail={serverOnline ? "Production online" : "Offline"}
             />
             <StatusChip
-              label="Server"
-              ready={Boolean(bridgeStatus?.serverOnline)}
-              detail={bridgeStatus?.serverOnline ? "Online" : "Offline"}
+              label="Terminal"
+              ready={paired}
+              detail={paired ? "Terotorisasi" : "Belum pairing"}
             />
             <StatusChip
               label="RFID"
-              ready={Boolean(terminalStarted && bridgeStatus?.deviceAuthorized)}
+              ready={paired && terminalStarted}
               detail={
-                terminalStarted && bridgeStatus?.deviceAuthorized
-                  ? "Siap membaca"
-                  : "Belum siap"
+                serialConnected
+                  ? "Serial terhubung"
+                  : terminalStarted
+                    ? "Keyboard-wedge siap"
+                    : "Belum aktif"
               }
             />
             <StatusChip
@@ -838,17 +1056,13 @@ export function OperationalTerminalKiosk() {
             />
             <StatusChip
               label="Face"
-              ready={Boolean(bridgeStatus?.faceServiceConfigured)}
-              detail={
-                bridgeStatus?.faceServiceConfigured
-                  ? "Tersedia"
-                  : "Belum siap"
-              }
+              ready={faceServiceReady}
+              detail={faceServiceReady ? "Production siap" : "Belum siap"}
             />
           </div>
         </header>
 
-        <div className="grid flex-1 gap-0 lg:min-h-0 lg:grid-cols-[minmax(0,1.35fr)_minmax(360px,0.65fr)]">
+        <div className="grid flex-1 gap-0 lg:min-h-0 lg:grid-cols-[minmax(0,1.35fr)_minmax(380px,0.65fr)]">
           <section className="flex min-h-[520px] flex-col border-b border-[#dbe5df] bg-[#0d1d17] lg:min-h-0 lg:border-b-0 lg:border-r">
             <div className="relative min-h-0 flex-1 overflow-hidden">
               <video
@@ -865,18 +1079,21 @@ export function OperationalTerminalKiosk() {
                       A12
                     </div>
                     <h1 className="mt-6 text-3xl font-bold tracking-[-0.04em] sm:text-4xl">
-                      Terminal absensi operasional
+                      Terminal absensi production
                     </h1>
                     <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-white/55">
-                      Kamera akan tampil real-time. Proses pengenalan wajah hanya
-                      dijalankan setelah kartu RFID dikenali.
+                      Kamera, RFID, face verification, dan database terhubung
+                      langsung ke layanan production. Tidak ada bridge localhost.
                     </p>
                     <button
                       type="button"
+                      disabled={!paired || !serverOnline}
                       onClick={() => void startCamera()}
-                      className="mt-7 rounded-2xl bg-white px-6 py-3.5 text-sm font-bold text-[#174e39] transition hover:bg-emerald-50"
+                      className="mt-7 rounded-2xl bg-white px-6 py-3.5 text-sm font-bold text-[#174e39] transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-40"
                     >
-                      Aktifkan kamera & mulai terminal
+                      {paired
+                        ? "Aktifkan kamera & mulai terminal"
+                        : "Pairing terminal terlebih dahulu"}
                     </button>
                   </div>
                 </div>
@@ -904,7 +1121,7 @@ export function OperationalTerminalKiosk() {
                         : "Berdiri satu orang di depan kamera."}
                     </span>
                     <span className="font-semibold text-white/90">
-                      Foto tidak disimpan sebagai gambar absensi
+                      Frame dikirim hanya setelah RFID valid
                     </span>
                   </div>
                 </>
@@ -912,7 +1129,7 @@ export function OperationalTerminalKiosk() {
             </div>
           </section>
 
-          <aside className="flex min-h-[540px] flex-col bg-[#fbfcfb] p-5 sm:p-7 lg:min-h-0 lg:overflow-y-auto">
+          <aside className="flex min-h-[560px] flex-col bg-[#fbfcfb] p-5 sm:p-7 lg:min-h-0 lg:overflow-y-auto">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#56806d]">
@@ -942,16 +1159,108 @@ export function OperationalTerminalKiosk() {
               >
                 {prompt.icon}
               </div>
-              <p className={`mt-5 text-[10px] font-bold uppercase tracking-[0.18em] ${promptStyle.text}`}>
+              <p
+                className={`mt-5 text-[10px] font-bold uppercase tracking-[0.18em] ${promptStyle.text}`}
+              >
                 {prompt.eyebrow}
               </p>
-              <h2 className={`mt-2 text-3xl font-bold tracking-[-0.04em] ${promptStyle.text}`}>
+              <h2
+                className={`mt-2 text-3xl font-bold tracking-[-0.04em] ${promptStyle.text}`}
+              >
                 {prompt.title}
               </h2>
               <p className={`mt-3 text-sm leading-6 ${promptStyle.text} opacity-80`}>
                 {prompt.detail}
               </p>
             </div>
+
+            {pairingState === "unpaired" ? (
+              <div className="mt-4 rounded-2xl border border-[#dbe5df] bg-white p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#56806d]">
+                  Pairing langsung ke production
+                </p>
+                <h3 className="mt-2 text-lg font-bold text-[#17352a]">
+                  Masukkan kode terminal
+                </h3>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  Buat kode dari Dashboard → Perangkat. Browser akan menerima
+                  sesi HttpOnly yang aman; tidak ada secret atau file env lokal.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <input
+                    value={pairingCode}
+                    onChange={(event) => setPairingCode(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !pairingPending) {
+                        void pairHostedTerminal();
+                      }
+                    }}
+                    autoComplete="off"
+                    spellCheck={false}
+                    placeholder="A12-XXXXX-XXXXX"
+                    className="h-12 min-w-0 flex-1 rounded-xl border border-[#d7e2dc] bg-white px-4 font-mono text-sm uppercase outline-none focus:border-[#6f9f88]"
+                  />
+                  <button
+                    type="button"
+                    disabled={pairingPending}
+                    onClick={() => void pairHostedTerminal()}
+                    className="h-12 rounded-xl bg-[#176b48] px-5 text-sm font-bold text-white transition hover:bg-[#115b3d] disabled:opacity-50"
+                  >
+                    {pairingPending ? "Pairing..." : "Hubungkan"}
+                  </button>
+                </div>
+                {pairingError ? (
+                  <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2.5 text-xs text-rose-700">
+                    {pairingError}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {paired && !terminalStarted ? (
+              <div className="mt-4 rounded-2xl border border-[#dbe5df] bg-white p-5">
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#56806d]">
+                  Reader RFID
+                </p>
+                <p className="mt-2 text-sm font-semibold text-[#17352a]">
+                  USB keyboard-wedge langsung siap
+                </p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Untuk Arduino/reader serial, Chrome atau Edge dapat membaca
+                  COM port langsung melalui Web Serial.
+                </p>
+                <div className="mt-4 flex flex-wrap items-end gap-2">
+                  <label className="min-w-[120px] flex-1">
+                    <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                      Baud rate
+                    </span>
+                    <select
+                      value={serialBaudRate}
+                      onChange={(event) =>
+                        setSerialBaudRate(Number(event.target.value))
+                      }
+                      className="h-10 w-full rounded-xl border border-[#d7e2dc] bg-white px-3 text-xs"
+                    >
+                      <option value={9600}>9600</option>
+                      <option value={19200}>19200</option>
+                      <option value={38400}>38400</option>
+                      <option value={57600}>57600</option>
+                      <option value={115200}>115200</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void connectSerial()}
+                    className="h-10 rounded-xl border border-[#cfded6] bg-[#f4f7f5] px-4 text-xs font-bold text-[#355548] transition hover:bg-[#e8f1ec]"
+                  >
+                    {serialConnected ? "Reader serial terhubung" : "Hubungkan Arduino / Serial"}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] leading-4 text-slate-400">
+                  Web Serial memerlukan Chrome/Edge desktop. Reader USB mode keyboard tidak perlu pairing COM port.
+                </p>
+              </div>
+            ) : null}
 
             {student ? (
               <div className="mt-4 rounded-2xl border border-[#dbe5df] bg-white p-5">
@@ -989,32 +1298,19 @@ export function OperationalTerminalKiosk() {
               </div>
             ) : null}
 
-            {!bridgeConnected ? (
-              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
-                <strong>Bridge lokal belum berjalan.</strong> Pada laptop terminal,
-                jalankan <code className="mx-1 rounded bg-white px-1.5 py-0.5">npm run device:bridge:env</code>
-                setelah perangkat selesai dipasangkan.
-              </div>
-            ) : bridgeStatus && !bridgeStatus.deviceAuthorized ? (
-              <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-xs leading-5 text-rose-800">
-                Kredensial terminal ditolak server. Lakukan pairing ulang dari
-                Dashboard → Perangkat.
-              </div>
-            ) : null}
-
             <div className="mt-auto pt-5">
               <div className="grid grid-cols-2 gap-3">
                 <div className="rounded-xl border border-[#dbe5df] bg-white px-4 py-3">
                   <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    Heartbeat
+                    Heartbeat production
                   </p>
                   <p className="mt-1 text-xs font-semibold text-[#355548]">
-                    {bridgeStatus?.lastHeartbeatAt
+                    {lastHeartbeatAt
                       ? new Intl.DateTimeFormat("id-ID", {
                           hour: "2-digit",
                           minute: "2-digit",
                           second: "2-digit",
-                        }).format(new Date(bridgeStatus.lastHeartbeatAt))
+                        }).format(new Date(lastHeartbeatAt))
                       : "Belum ada"}
                   </p>
                 </div>
@@ -1029,20 +1325,22 @@ export function OperationalTerminalKiosk() {
               </div>
 
               <p className="mt-4 text-center text-[10px] leading-4 text-slate-400">
-                Reader USB keyboard-wedge dapat langsung digunakan. Reader
-                Arduino/serial mengirim UID ke bridge lokal melalui endpoint
-                <code className="mx-1">/scan</code> atau stdin.
+                Semua API, database, pairing, heartbeat, dan face verification
+                berjalan di production. Laptop hanya memberi akses ke kamera dan
+                reader RFID fisik melalui browser.
               </p>
             </div>
           </aside>
         </div>
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-[#dbe5df] bg-white px-5 py-3 text-[10px] text-slate-400 sm:px-7">
-          <span>{SCHOOL.systemName} · Mode Terminal Operasional</span>
+          <span>{SCHOOL.systemName} · Terminal Production</span>
           <span>
             {terminalReady
               ? "Terminal siap menerima absensi"
-              : "Menunggu seluruh komponen siap"}
+              : paired
+                ? "Menunggu kamera dan layanan siap"
+                : "Menunggu pairing terminal"}
           </span>
         </footer>
       </div>

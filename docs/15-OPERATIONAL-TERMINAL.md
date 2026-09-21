@@ -1,94 +1,63 @@
 # Operational Terminal Kiosk
 
-Route production terminal:
+Route production:
 
 ```text
 /terminal/device
 ```
 
-Halaman ini berbeda dari `/terminal` recruiter demo dan `/terminal/lab` simulator. Kiosk ini ditujukan untuk laptop/mini PC yang benar-benar terhubung dengan kamera dan reader RFID.
+Halaman ini khusus laptop/mini PC yang menjadi terminal absensi fisik. `/terminal` tetap recruiter demo dan `/terminal/lab` tetap simulator.
 
 ## Arsitektur
 
 ```text
-RFID reader / Arduino
-        |
-        v
-local device bridge (127.0.0.1:8765)
-        |   keeps DEVICE_SECRET local
-        v
-Next.js device API
-        |
-        +--> Supabase attendance
-        +--> face service
-        ^
-        |
-browser kiosk camera
+RFID USB / Arduino Serial ─┐
+                          ├─> Browser HTTPS /terminal/device
+Kamera laptop / USB ──────┘              |
+                                         v
+                              Next.js production API
+                                |              |
+                                v              v
+                             Supabase      Face Service
 ```
 
-Browser tidak menerima `DEVICE_SECRET`. Secret hanya dibaca oleh proses bridge lokal dari `.env.device`.
+Tidak ada localhost bridge. Semua service aplikasi berjalan di production. Laptop hanya menjadi endpoint fisik untuk kamera dan reader RFID.
 
-## Persiapan
+## Pairing
 
-1. Daftarkan terminal dari Dashboard → Perangkat & Terminal.
-2. Buat pairing code.
-3. Pada laptop terminal buat `.env.device.pairing` lalu jalankan:
+1. Admin buka Dashboard → Perangkat & Terminal.
+2. Admin daftarkan terminal dan buat pairing code.
+3. Laptop terminal buka `https://<domain-production>/terminal/device`.
+4. Masukkan pairing code.
+5. Server membuat sesi HttpOnly production.
+6. Klik **Aktifkan kamera & mulai terminal**.
 
-```bash
-npm run device:pair:env
-```
+Tidak perlu CLI, file env terminal, service background, atau localhost port.
 
-Hasil pairing disimpan di `.env.device`.
+## Reader RFID USB keyboard-wedge
 
-4. Jalankan bridge:
+Reader yang bekerja seperti keyboard langsung didukung. Saat kartu ditempel, reader mengetik UID dan Enter. Halaman kiosk menangkap UID tersebut lalu mengirim card scan ke API production.
 
-```bash
-npm run device:bridge:env
-```
+## Arduino / serial
 
-5. Buka:
+Gunakan Chrome atau Edge desktop. Pada halaman terminal:
+
+1. Pilih baud rate.
+2. Klik **Hubungkan Arduino / Serial**.
+3. Pilih COM port dari dialog browser.
+4. Arduino mengirim UID sebagai satu baris per kartu, misalnya:
 
 ```text
-https://<domain-attendance>/terminal/device
+04:A1:B2:C3:D4
 ```
 
-6. Klik **Aktifkan kamera & mulai terminal** dan izinkan akses kamera.
-
-## Reader RFID
-
-### Keyboard-wedge USB reader
-
-Reader yang bekerja seperti keyboard dapat langsung digunakan. UID diketik oleh reader dan diakhiri Enter; kiosk menangkap input tersebut tanpa form manual.
-
-### Arduino / serial reader
-
-Bridge menerima UID melalui:
-
-```http
-POST http://127.0.0.1:8765/scan
-Content-Type: application/json
-
-{
-  "rfidUid": "04:A1:B2:C3:D4",
-  "source": "arduino-serial"
-}
-```
-
-atau melalui stdin:
+atau:
 
 ```text
 RFID:04:A1:B2:C3:D4
 ```
 
-Untuk laptop Windows yang menerima UID dari Arduino melalui COM port, repo juga menyediakan adapter tanpa dependency tambahan:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\windows-rfid-serial-adapter.ps1 -PortName COM3 -BaudRate 9600
-```
-
-Ganti `COM3` dan baud rate sesuai Arduino. Setiap baris serial boleh berupa UID langsung atau `RFID:<UID>`; adapter meneruskannya ke local bridge.
-
-Bridge sengaja tidak mengikat backend ke satu driver serial tertentu agar reader RC522, PN532, USB HID, atau microcontroller lain tetap dapat diganti tanpa mengubah API absensi.
+Web Serial membaca port langsung dari browser. Tidak ada adapter PowerShell atau bridge Node.
 
 ## Flow layar
 
@@ -98,7 +67,7 @@ Tempelkan kartu RFID
   |
   v
 RFID TERBACA
-Memeriksa identitas + jadwal
+server memeriksa identitas + jadwal
   |
   +--> invalid -> warning/rejected -> reset
   |
@@ -107,9 +76,9 @@ CAPTURE_FACE
 kamera live + identitas siswa
   |
   v
-face verify
+face verify production
   |
-  +--> low quality/no face -> retry otomatis maksimal 4 kali
+  +--> no face / low quality -> retry otomatis maksimal 4 kali
   +--> mismatch -> ditolak
   +--> match -> absensi tercatat
   |
@@ -117,34 +86,20 @@ face verify
 reset otomatis ke IDLE
 ```
 
-Kamera dapat tetap menampilkan preview real-time, tetapi frame hanya dikirim untuk verifikasi setelah kartu RFID valid dan backend membuat verification transaction.
+Frame wajah hanya dikirim setelah kartu valid.
 
-## Heartbeat & status
+## Status yang ditampilkan
 
-Bridge mengirim heartbeat setiap 30 detik. Kiosk menampilkan:
+Kiosk menampilkan koneksi server production, status terminal session, kesiapan RFID, kamera, face-service, heartbeat terakhir, identitas siswa, sesi absensi, skor verifikasi jika tersedia, dan UID kartu terakhir.
 
-- bridge lokal
-- koneksi server
-- status otorisasi RFID/device
-- kamera
-- kesiapan face service
-- heartbeat terakhir
-- kartu RFID terakhir
+Dashboard admin tetap menjadi tempat monitoring online/offline, pairing, rotasi session, revoke, error 24 jam, dan absensi terakhir.
 
-Dashboard admin tetap menjadi tempat monitoring online/offline, pairing, rotasi credential, revoke, error 24 jam, dan absensi terakhir.
+## Browser yang disarankan
 
-## CORS / custom domain
-
-Secara default bridge menerima browser origin dari `ATTENDANCE_API_URL` serta localhost development. Jika kiosk memakai custom domain berbeda dari API URL, tambahkan ke `.env.device`:
-
-```env
-TERMINAL_ALLOWED_ORIGINS=https://attendance.sekolah.sch.id
-```
-
-Beberapa origin dapat dipisahkan dengan koma.
+Chrome atau Microsoft Edge desktop. Keduanya mendukung kamera HTTPS dan Web Serial untuk Arduino/COM port. Reader keyboard-wedge tetap dapat digunakan tanpa Web Serial.
 
 ## Offline
 
-Versi ini **tidak mengklaim absensi wajah dapat divalidasi penuh tanpa server**. Jika server/internet putus, kiosk menunjukkan status offline dan transaksi baru tidak dianggap sah sampai backend dapat memvalidasi jadwal, identitas, dan wajah.
+Absensi tidak dianggap sah saat server production tidak dapat dihubungi. Sistem sengaja tidak membuat keputusan wajah atau jadwal secara lokal.
 
-Untuk true offline attendance diperlukan sinkronisasi lokal data siswa/jadwal/template wajah, local inference, encrypted local store, conflict resolution, dan re-sync. Itu harus dibangun sebagai mode failover tersendiri agar tidak menciptakan absensi palsu atau duplikat.
+Mode offline penuh membutuhkan local inference, encrypted local database, sinkronisasi template/jadwal, conflict resolution, dan re-sync. Itu merupakan failover architecture terpisah dan tidak dicampur dengan runtime production utama.

@@ -87,7 +87,7 @@ export function DevicePairingWizard({
 
   const disabled = status === "REVOKED";
   const buttonLabel = secretConfigured
-    ? "Pair ulang / rotasi kunci"
+    ? "Pair ulang / rotasi akses"
     : pairingStatus === "WAITING"
       ? "Lihat pairing"
       : "Pasangkan perangkat";
@@ -145,8 +145,8 @@ export function DevicePairingWizard({
                   <div className="grid gap-3 sm:grid-cols-3">
                     {[
                       ["01", "Buat kode", "Kode sekali pakai berlaku 10 menit."],
-                      ["02", "Masukkan di perangkat", "Bridge atau firmware mengklaim kode melalui API."],
-                      ["03", "Kredensial aktif", "Secret baru diterbitkan langsung ke perangkat."],
+                      ["02", "Buka terminal production", "Akses /terminal/device pada laptop perangkat."],
+                      ["03", "Masukkan kode", "Browser mendapat sesi HttpOnly langsung dari server production."],
                     ].map(([number, title, description]) => (
                       <div key={number} className="rounded-2xl border border-[#dce6e0] bg-[#f8faf9] p-4">
                         <span className="text-[10px] font-bold text-[#1b7a52]">{number}</span>
@@ -171,11 +171,10 @@ export function DevicePairingWizard({
 
                   <div className="mt-6 rounded-2xl border border-[#dce6e0] p-5">
                     <p className="text-sm font-bold text-[#17352a]">
-                      {secretConfigured ? "Rotasi kredensial perangkat" : "Siapkan perangkat untuk pairing"}
+                      {secretConfigured ? "Rotasi sesi terminal" : "Siapkan terminal untuk pairing"}
                     </p>
                     <p className="mt-2 text-sm leading-6 text-slate-500">
-                      Secret perangkat tidak dikirim ke browser administrator. Setelah kode diklaim,
-                      server menerbitkan secret baru hanya satu kali langsung ke perangkat.
+                      Untuk terminal laptop sekolah, pairing dilakukan langsung di halaman production. Tidak perlu bridge localhost, file env, atau menyimpan device secret di JavaScript browser.
                     </p>
                   </div>
 
@@ -204,7 +203,7 @@ export function DevicePairingWizard({
                 <>
                   <div className="rounded-[22px] border border-emerald-200 bg-emerald-50/70 p-5 text-center sm:p-6">
                     <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700">
-                      {result.mode === "ROTATE" ? "Kode rotasi kredensial" : "Kode pairing sekali pakai"}
+                      {result.mode === "ROTATE" ? "Kode rotasi sesi terminal" : "Kode pairing sekali pakai"}
                     </p>
                     <p className="mt-4 break-all font-mono text-3xl font-bold tracking-[0.1em] text-[#12382b] sm:text-4xl">
                       {result.pairingCode}
@@ -222,18 +221,17 @@ export function DevicePairingWizard({
                   </div>
 
                   <div className="mt-5 rounded-2xl border border-[#dce6e0] p-5">
-                    <p className="text-sm font-bold text-[#17352a]">Hubungkan perangkat</p>
+                    <p className="text-sm font-bold text-[#17352a]">Hubungkan terminal production</p>
                     <ol className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
-                      <li><strong className="text-[#24483a]">1.</strong> Buka aplikasi bridge/terminal pada komputer perangkat.</li>
-                      <li><strong className="text-[#24483a]">2.</strong> Masukkan kode di atas dan gunakan protokol <code>{protocolVersion}</code>.</li>
-                      <li><strong className="text-[#24483a]">3.</strong> Perangkat mengirim kode ke <code>/api/device/v1/pair</code>.</li>
-                      <li><strong className="text-[#24483a]">4.</strong> Setelah berhasil, secret disimpan lokal pada perangkat dan heartbeat dimulai.</li>
+                      <li><strong className="text-[#24483a]">1.</strong> Pada laptop terminal, buka <code>/terminal/device</code> dari domain production.</li>
+                      <li><strong className="text-[#24483a]">2.</strong> Masukkan kode di atas pada panel pairing.</li>
+                      <li><strong className="text-[#24483a]">3.</strong> Server membuat sesi terminal HttpOnly yang berlaku 30 hari.</li>
+                      <li><strong className="text-[#24483a]">4.</strong> Kamera, RFID, heartbeat, database, dan face verification langsung memakai API production.</li>
                     </ol>
                   </div>
 
                   <div className="mt-5 rounded-2xl bg-[#f5f8f6] p-4 text-xs leading-5 text-slate-500">
-                    Untuk bridge Node bawaan repo, jalankan <code>npm run device:pair:env</code> setelah mengisi
-                    <code> PAIRING_CODE</code> dan <code>ATTENDANCE_API_URL</code> pada file env lokal perangkat.
+                    Tidak ada proses localhost yang wajib dijalankan. Untuk Arduino/reader serial, halaman terminal production menggunakan Web Serial langsung dari Chrome/Edge; reader USB keyboard-wedge langsung terbaca sebagai input kartu.
                   </div>
 
                   <div className="mt-6 flex flex-wrap justify-between gap-3">

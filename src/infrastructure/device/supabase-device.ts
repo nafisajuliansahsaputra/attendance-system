@@ -12,6 +12,10 @@ const authenticatedDeviceSchema = z.object({
   protocolVersion: z.string().min(1),
 });
 
+const terminalSessionDeviceSchema = authenticatedDeviceSchema.extend({
+  sessionExpiresAt: z.string().min(1),
+});
+
 const verificationTransactionSchema = z.object({
   transactionId: z.string().uuid(),
   expiresAt: z.string().min(1),
@@ -30,12 +34,19 @@ const claimPairingSchema = z.object({
   credentialRotated: z.boolean(),
 });
 
+const claimBrowserPairingSchema = claimPairingSchema.extend({
+  sessionExpiresAt: z.string().min(1),
+});
+
 const heartbeatSchema = z.object({
   deviceId: z.string().uuid(),
   lastHeartbeatAt: z.string().min(1),
 });
 
 export type AuthenticatedDevice = z.infer<typeof authenticatedDeviceSchema>;
+export type AuthenticatedTerminalSession = z.infer<
+  typeof terminalSessionDeviceSchema
+>;
 export type DeviceVerificationTransaction = z.infer<
   typeof verificationTransactionSchema
 >;
@@ -54,6 +65,19 @@ export async function authenticateSupabaseDevice(input: {
   return authenticatedDeviceSchema.parse(raw);
 }
 
+export async function authenticateSupabaseTerminalSession(
+  sessionHash: string,
+): Promise<AuthenticatedTerminalSession> {
+  const raw = await callSupabaseAdminRpc<unknown>(
+    "authenticate_terminal_session",
+    {
+      p_session_hash: sessionHash,
+    },
+  );
+
+  return terminalSessionDeviceSchema.parse(raw);
+}
+
 export async function claimSupabaseDevicePairing(input: {
   codeHash: string;
   secretHash: string;
@@ -68,6 +92,36 @@ export async function claimSupabaseDevicePairing(input: {
   });
 
   const parsed = claimPairingSchema.parse(raw);
+
+  return {
+    ...parsed,
+    location: parsed.location ?? undefined,
+  };
+}
+
+export async function claimSupabaseBrowserTerminalPairing(input: {
+  codeHash: string;
+  sessionHash: string;
+  deviceSecretHash: string;
+  protocolVersion: string;
+  clientMetadata?: Record<string, unknown>;
+}): Promise<
+  ClaimDevicePairingResult & {
+    sessionExpiresAt: string;
+  }
+> {
+  const raw = await callSupabaseAdminRpc<unknown>(
+    "claim_browser_terminal_pairing",
+    {
+      p_code_hash: input.codeHash,
+      p_session_hash: input.sessionHash,
+      p_device_secret_hash: input.deviceSecretHash,
+      p_protocol_version: input.protocolVersion,
+      p_client_metadata: input.clientMetadata ?? {},
+    },
+  );
+
+  const parsed = claimBrowserPairingSchema.parse(raw);
 
   return {
     ...parsed,

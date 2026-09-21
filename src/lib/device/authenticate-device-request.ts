@@ -2,8 +2,13 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import {
   authenticateSupabaseDevice,
+  authenticateSupabaseTerminalSession,
   type AuthenticatedDevice,
 } from "../../infrastructure/device/supabase-device";
+import {
+  hashTerminalSessionToken,
+  readTerminalSessionToken,
+} from "./terminal-session";
 
 const credentialSchema = z.object({
   deviceId: z.string().uuid(),
@@ -49,23 +54,46 @@ export function parseDeviceCredentialHeaders(
   return parsed.data;
 }
 
+function hasExplicitDeviceCredentials(headers: Headers) {
+  return Boolean(
+    headers.get("authorization") ||
+      headers.get("x-device-id") ||
+      headers.get("x-protocol-version"),
+  );
+}
+
 export async function authenticateDeviceRequest(
   request: Request,
 ): Promise<AuthenticatedDevice> {
-  let credentials: DeviceRequestCredentials;
+  if (hasExplicitDeviceCredentials(request.headers)) {
+    let credentials: DeviceRequestCredentials;
 
-  try {
-    credentials = parseDeviceCredentialHeaders(request.headers);
-  } catch {
+    try {
+      credentials = parseDeviceCredentialHeaders(request.headers);
+    } catch {
+      throw new DeviceAuthenticationError();
+    }
+
+    try {
+      return await authenticateSupabaseDevice({
+        deviceId: credentials.deviceId,
+        secretHash: hashDeviceSecret(credentials.secret),
+        protocolVersion: credentials.protocolVersion,
+      });
+    } catch {
+      throw new DeviceAuthenticationError();
+    }
+  }
+
+  const terminalSessionToken = readTerminalSessionToken(request.headers);
+  if (!terminalSessionToken) {
     throw new DeviceAuthenticationError();
   }
 
   try {
-    return await authenticateSupabaseDevice({
-      deviceId: credentials.deviceId,
-      secretHash: hashDeviceSecret(credentials.secret),
-      protocolVersion: credentials.protocolVersion,
-    });
+    return await authenticateSupabaseTerminalSession(
+      hashTerminalSessionToken(terminalSessionToken),
+    );
   } catch {
     throw new DeviceAuthenticationError();
   }
