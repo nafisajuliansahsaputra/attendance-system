@@ -22,7 +22,8 @@ class Settings:
 
 
 def load_settings() -> Settings:
-    model_dir = Path(os.getenv("FACE_MODEL_DIR", "models")).resolve()
+    default_model_dir = Path(__file__).resolve().parents[1] / "models"
+    model_dir = Path(os.getenv("FACE_MODEL_DIR", str(default_model_dir))).resolve()
     threshold = float(os.getenv("SFACE_COSINE_THRESHOLD", "0.363"))
     if not 0.0 < threshold < 1.0:
         raise ValueError("SFACE_COSINE_THRESHOLD must be between 0 and 1")
