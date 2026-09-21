@@ -352,77 +352,80 @@ export function OperationalTerminalKiosk() {
       attempt: number;
       identity: StudentIdentity | null;
     }) => {
-      if (!cameraReady || !terminalStarted) {
-        finishResult("FACE_NOT_DETECTED", false, input.identity);
-        return;
-      }
+      let attempt = input.attempt;
 
-      const imageBase64 = captureJpeg();
-      if (!imageBase64) {
-        if (input.attempt < MAX_FACE_ATTEMPTS) {
-          verificationTimerRef.current = window.setTimeout(
-            () =>
-              void verifyFace({
-                ...input,
-                attempt: input.attempt + 1,
-              }),
-            700,
-          );
-          return;
-        }
-        finishResult("FACE_NOT_DETECTED", false, input.identity);
-        return;
-      }
+      while (attempt <= MAX_FACE_ATTEMPTS) {
+        if (!processingRef.current) return;
 
-      setStage("verifying");
-      setFaceAttempt(input.attempt);
-      setMessage(
-        input.attempt === 1
-          ? "Wajah terdeteksi. Sistem sedang mencocokkan identitas."
-          : "Posisikan wajah tetap di dalam panduan. Sistem mencoba kembali.",
-      );
-
-      try {
-        const response = await fetch(`${BRIDGE_BASE_URL}/face-verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            requestId: input.requestId,
-            verificationTransactionId: input.transactionId,
-            imageBase64,
-          }),
-          cache: "no-store",
-        });
-        const payload = (await response.json().catch(() => ({}))) as FaceResult;
-
-        if (
-          payload.retryable &&
-          isRetryableFaceCode(payload.code) &&
-          input.attempt < MAX_FACE_ATTEMPTS
-        ) {
-          const retryMessage = operationalTerminalMessage(payload.code);
-          setResultCode(payload.code ?? null);
-          setMessage(retryMessage.detail);
-          verificationTimerRef.current = window.setTimeout(
-            () =>
-              void verifyFace({
-                ...input,
-                attempt: input.attempt + 1,
-              }),
-            900,
-          );
+        if (!cameraReady || !terminalStarted) {
+          finishResult("FACE_NOT_DETECTED", false, input.identity);
           return;
         }
 
-        finishResult(
-          payload.code ?? (response.ok ? "SYSTEM_ERROR" : "SYSTEM_ERROR"),
-          Boolean(payload.accepted),
-          input.identity,
-          payload.verificationScore ?? null,
+        const imageBase64 = captureJpeg();
+        if (!imageBase64) {
+          if (attempt >= MAX_FACE_ATTEMPTS) {
+            finishResult("FACE_NOT_DETECTED", false, input.identity);
+            return;
+          }
+
+          await new Promise<void>((resolve) => {
+            window.setTimeout(resolve, 700);
+          });
+          attempt += 1;
+          continue;
+        }
+
+        setStage("verifying");
+        setFaceAttempt(attempt);
+        setMessage(
+          attempt === 1
+            ? "Wajah terdeteksi. Sistem sedang mencocokkan identitas."
+            : "Posisikan wajah tetap di dalam panduan. Sistem mencoba kembali.",
         );
-      } catch {
-        setBridgeConnected(false);
-        finishResult("FACE_SERVICE_ERROR", false, input.identity);
+
+        try {
+          const response = await fetch(`${BRIDGE_BASE_URL}/face-verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              requestId: input.requestId,
+              verificationTransactionId: input.transactionId,
+              imageBase64,
+            }),
+            cache: "no-store",
+          });
+          const payload = (await response.json().catch(() => ({}))) as FaceResult;
+
+          if (
+            payload.retryable &&
+            isRetryableFaceCode(payload.code) &&
+            attempt < MAX_FACE_ATTEMPTS
+          ) {
+            const retryMessage = operationalTerminalMessage(payload.code);
+            setResultCode(payload.code ?? null);
+            setMessage(retryMessage.detail);
+
+            await new Promise<void>((resolve) => {
+              window.setTimeout(resolve, 900);
+            });
+            if (!processingRef.current) return;
+            attempt += 1;
+            continue;
+          }
+
+          finishResult(
+            payload.code ?? "SYSTEM_ERROR",
+            Boolean(payload.accepted),
+            input.identity,
+            payload.verificationScore ?? null,
+          );
+          return;
+        } catch {
+          setBridgeConnected(false);
+          finishResult("FACE_SERVICE_ERROR", false, input.identity);
+          return;
+        }
       }
     },
     [

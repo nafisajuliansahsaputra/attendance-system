@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type {
   AdminDevicePairingStatus,
   AdminDeviceStatus,
@@ -44,15 +44,12 @@ export function DevicePairingWizard({
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<PairingActionResult | null>(null);
   const [copied, setCopied] = useState(false);
-  const [clock, setClock] = useState(0);
+  const [, setClock] = useState(0);
   const [pending, startTransition] = useTransition();
 
   const currentExpiry =
     result && result.ok ? result.expiresAt : pairingExpiresAt;
-  const countdown = useMemo(
-    () => remainingLabel(currentExpiry),
-    [currentExpiry, clock],
-  );
+  const countdown = remainingLabel(currentExpiry);
 
   useEffect(() => {
     if (!open || !currentExpiry) return;
@@ -60,11 +57,11 @@ export function DevicePairingWizard({
     return () => window.clearInterval(timer);
   }, [currentExpiry, open]);
 
-  useEffect(() => {
-    if (!open) {
-      setCopied(false);
-    }
-  }, [open]);
+  function closeModal() {
+    setCopied(false);
+    setResult(null);
+    setOpen(false);
+  }
 
   function generate() {
     setCopied(false);
@@ -78,7 +75,7 @@ export function DevicePairingWizard({
     startTransition(async () => {
       await cancelDevicePairingAction(deviceId);
       setResult(null);
-      setOpen(false);
+      closeModal();
     });
   }
 
@@ -100,7 +97,10 @@ export function DevicePairingWizard({
       <button
         type="button"
         disabled={disabled}
-        onClick={() => setOpen(true)}
+        onClick={() => {
+          setCopied(false);
+          setOpen(true);
+        }}
         className="rounded-xl bg-[#176b48] px-3.5 py-2.5 text-xs font-bold text-white transition hover:bg-[#115b3d] disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500"
       >
         {disabled ? "Akses dicabut" : buttonLabel}
@@ -113,7 +113,7 @@ export function DevicePairingWizard({
           aria-modal="true"
           aria-label="Pasangkan terminal"
           onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setOpen(false);
+            if (event.target === event.currentTarget) closeModal();
           }}
         >
           <div className="max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-[28px] border border-[#d7e3dc] bg-white shadow-[0_30px_90px_rgba(7,31,22,0.28)]">
@@ -131,7 +131,7 @@ export function DevicePairingWizard({
               </div>
               <button
                 type="button"
-                onClick={() => setOpen(false)}
+                onClick={closeModal}
                 className="grid h-9 w-9 place-items-center rounded-full border border-[#dce6e0] text-lg text-slate-500 transition hover:bg-[#f5f8f6]"
                 aria-label="Tutup"
               >
@@ -247,7 +247,7 @@ export function DevicePairingWizard({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setOpen(false)}
+                      onClick={closeModal}
                       className="rounded-xl bg-[#176b48] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#115b3d]"
                     >
                       Selesai
