@@ -9,6 +9,17 @@ export const metadata: Metadata = {
   },
 };
 
-export default function OperationalTerminalPage() {
-  return <OperationalTerminalKiosk />;
+type OperationalTerminalPageProps = {
+  searchParams: Promise<{
+    portfolio?: string | string[];
+  }>;
+};
+
+export default async function OperationalTerminalPage({
+  searchParams,
+}: OperationalTerminalPageProps) {
+  const params = await searchParams;
+  const presentationMode = params.portfolio === "1";
+
+  return <OperationalTerminalKiosk presentationMode={presentationMode} />;
 }
