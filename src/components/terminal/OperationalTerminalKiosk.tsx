@@ -271,7 +271,9 @@ export function OperationalTerminalKiosk() {
   const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string | null>(null);
   const [terminalStarted, setTerminalStarted] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const [serialSupported, setSerialSupported] = useState(false);
+  const [serialSupported, setSerialSupported] = useState(
+    () => typeof navigator !== "undefined" && Boolean(serialApi()),
+  );
   const [serialConnected, setSerialConnected] = useState(false);
   const [serialBaudRate, setSerialBaudRate] = useState(9600);
   const [stage, setStage] = useState<TerminalStage>("boot");
@@ -860,9 +862,6 @@ export function OperationalTerminalKiosk() {
     }
   }, [clearTimers, paired]);
 
-  useEffect(() => {
-    setSerialSupported(Boolean(serialApi()));
-  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
