@@ -80,7 +80,15 @@ atau melalui stdin:
 RFID:04:A1:B2:C3:D4
 ```
 
-Adapter serial yang membaca Arduino cukup meneruskan UID ke salah satu interface tersebut. Bridge sengaja tidak mengikat repo ke driver serial tertentu agar reader RC522, PN532, USB HID, atau microcontroller lain tetap dapat diganti tanpa mengubah backend absensi.
+Untuk laptop Windows yang menerima UID dari Arduino melalui COM port, repo juga menyediakan adapter tanpa dependency tambahan:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\windows-rfid-serial-adapter.ps1 -PortName COM3 -BaudRate 9600
+```
+
+Ganti `COM3` dan baud rate sesuai Arduino. Setiap baris serial boleh berupa UID langsung atau `RFID:<UID>`; adapter meneruskannya ke local bridge.
+
+Bridge sengaja tidak mengikat backend ke satu driver serial tertentu agar reader RC522, PN532, USB HID, atau microcontroller lain tetap dapat diganti tanpa mengubah API absensi.
 
 ## Flow layar
 
