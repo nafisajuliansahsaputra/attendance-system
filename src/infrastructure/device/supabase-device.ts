@@ -102,6 +102,7 @@ export async function claimSupabaseDevicePairing(input: {
 export async function claimSupabaseBrowserTerminalPairing(input: {
   codeHash: string;
   sessionHash: string;
+  deviceSecretHash: string;
   protocolVersion: string;
   clientMetadata?: Record<string, unknown>;
 }): Promise<
@@ -114,6 +115,7 @@ export async function claimSupabaseBrowserTerminalPairing(input: {
     {
       p_code_hash: input.codeHash,
       p_session_hash: input.sessionHash,
+      p_device_secret_hash: input.deviceSecretHash,
       p_protocol_version: input.protocolVersion,
       p_client_metadata: input.clientMetadata ?? {},
     },
