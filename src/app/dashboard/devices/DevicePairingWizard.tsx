@@ -87,7 +87,7 @@ export function DevicePairingWizard({
 
   const disabled = status === "REVOKED";
   const buttonLabel = secretConfigured
-    ? "Pair ulang / rotasi sesi"
+    ? "Pair ulang / rotasi akses"
     : pairingStatus === "WAITING"
       ? "Lihat pairing"
       : "Pasangkan perangkat";
