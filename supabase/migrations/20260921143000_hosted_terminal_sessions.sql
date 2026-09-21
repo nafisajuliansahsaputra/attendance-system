@@ -620,6 +620,176 @@ begin
 end;
 $$;
 
+create or replace function public.claim_device_pairing(
+  p_code_hash text,
+  p_secret_hash text,
+  p_protocol_version text,
+  p_client_metadata jsonb default '{}'::jsonb
+)
+returns jsonb
+language plpgsql
+security invoker
+set search_path = public, pg_temp
+as $
+declare
+  v_pairing public.device_pairing_sessions%rowtype;
+  v_device public.devices%rowtype;
+  v_had_secret boolean;
+  v_had_browser_session boolean;
+  v_metadata jsonb;
+begin
+  if p_code_hash is null or p_code_hash !~ '^sha256:[0-9a-f]{64}(text, text, text, jsonb) from public;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
+grant execute on function public.claim_browser_terminal_pairing(text, text, text, jsonb) to service_role;
+
+revoke all on function public.authenticate_terminal_session(text) from public;
+revoke all on function public.authenticate_terminal_session(text) from anon;
+revoke all on function public.authenticate_terminal_session(text) from authenticated;
+grant execute on function public.authenticate_terminal_session(text) to service_role;
+ then
+    raise exception 'PAIRING_CODE_INVALID';
+  end if;
+
+  if p_secret_hash is null or p_secret_hash !~ '^sha256:[0-9a-f]{64}(text, text, text, jsonb) from public;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
+revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
+grant execute on function public.claim_browser_terminal_pairing(text, text, text, jsonb) to service_role;
+
+revoke all on function public.authenticate_terminal_session(text) from public;
+revoke all on function public.authenticate_terminal_session(text) from anon;
+revoke all on function public.authenticate_terminal_session(text) from authenticated;
+grant execute on function public.authenticate_terminal_session(text) to service_role;
+ then
+    raise exception 'INVALID_DEVICE_SECRET_HASH';
+  end if;
+
+  if p_protocol_version is null or btrim(p_protocol_version) = '' then
+    raise exception 'INVALID_PROTOCOL_VERSION';
+  end if;
+
+  update public.device_pairing_sessions
+  set status = 'EXPIRED'
+  where status = 'ACTIVE'
+    and expires_at <= now();
+
+  update public.device_terminal_sessions
+  set status = 'EXPIRED'
+  where status = 'ACTIVE'
+    and expires_at <= now();
+
+  select ps.* into v_pairing
+  from public.device_pairing_sessions ps
+  where ps.code_hash = p_code_hash
+    and ps.status = 'ACTIVE'
+    and ps.expires_at > now()
+  for update;
+
+  if not found then
+    raise exception 'PAIRING_CODE_INVALID';
+  end if;
+
+  select d.* into v_device
+  from public.devices d
+  where d.id = v_pairing.device_id
+  for update;
+
+  if not found
+     or v_device.institution_id <> v_pairing.institution_id
+     or v_device.status <> 'ACTIVE' then
+    raise exception 'DEVICE_NOT_AVAILABLE_FOR_PAIRING';
+  end if;
+
+  if v_device.protocol_version <> btrim(p_protocol_version) then
+    raise exception 'DEVICE_PROTOCOL_MISMATCH';
+  end if;
+
+  v_had_secret := v_device.secret_hash is not null;
+  v_had_browser_session := exists (
+    select 1
+    from public.device_terminal_sessions ts
+    where ts.device_id = v_device.id
+      and ts.status = 'ACTIVE'
+      and ts.expires_at > now()
+  );
+
+  update public.device_terminal_sessions
+  set status = 'REVOKED',
+      revoked_at = now()
+  where device_id = v_device.id
+    and status = 'ACTIVE';
+
+  v_metadata := coalesce(v_device.metadata, '{}'::jsonb)
+    || jsonb_build_object(
+      'pairedClient',
+      coalesce(p_client_metadata, '{}'::jsonb),
+      'terminalRuntime',
+      'HEADLESS',
+      'lastPairingAt',
+      now()
+    );
+
+  update public.devices
+  set secret_hash = p_secret_hash,
+      paired_at = coalesce(paired_at, now()),
+      credential_rotated_at = case
+        when v_had_secret or v_had_browser_session then now()
+        else credential_rotated_at
+      end,
+      last_seen_at = now(),
+      last_heartbeat_at = now(),
+      metadata = v_metadata,
+      updated_at = now()
+  where id = v_device.id
+  returning * into v_device;
+
+  update public.device_pairing_sessions
+  set status = 'CLAIMED',
+      claimed_at = now(),
+      client_metadata = coalesce(p_client_metadata, '{}'::jsonb)
+  where id = v_pairing.id;
+
+  insert into public.audit_logs (
+    institution_id,
+    actor_user_id,
+    action,
+    entity_type,
+    entity_id,
+    after_data,
+    reason
+  ) values (
+    v_pairing.institution_id,
+    v_pairing.created_by,
+    case
+      when v_had_secret or v_had_browser_session then 'DEVICE_CREDENTIAL_ROTATED'
+      else 'DEVICE_PAIRED'
+    end,
+    'device',
+    v_device.id,
+    jsonb_build_object(
+      'pairingSessionId', v_pairing.id,
+      'runtime', 'HEADLESS',
+      'protocolVersion', v_device.protocol_version,
+      'pairedAt', v_device.paired_at,
+      'credentialRotatedAt', v_device.credential_rotated_at
+    ),
+    'Pairing code claimed by headless device'
+  );
+
+  return jsonb_build_object(
+    'deviceId', v_device.id,
+    'institutionId', v_device.institution_id,
+    'code', v_device.code,
+    'name', v_device.name,
+    'deviceType', v_device.device_type,
+    'protocolVersion', v_device.protocol_version,
+    'location', v_device.location,
+    'pairedAt', v_device.paired_at,
+    'credentialRotated', v_had_secret or v_had_browser_session
+  );
+end;
+$;
+
 revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from public;
 revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from anon;
 revoke all on function public.claim_browser_terminal_pairing(text, text, text, jsonb) from authenticated;
