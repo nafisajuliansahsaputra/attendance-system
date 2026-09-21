@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { claimSupabaseBrowserTerminalPairing } from "@/infrastructure/device/supabase-device";
 import { isSupabaseServerConfigured } from "@/infrastructure/supabase/server-config";
-import { hashPairingCode } from "@/lib/device/pairing";
+import { generateDeviceSecret, hashPairingCode } from "@/lib/device/pairing";
+import { hashDeviceSecret } from "@/lib/device/authenticate-device-request";
 import {
   generateTerminalSessionToken,
   hashTerminalSessionToken,
@@ -80,11 +81,13 @@ export async function POST(request: Request) {
   }
 
   const sessionToken = generateTerminalSessionToken();
+  const discardedDeviceSecret = generateDeviceSecret();
 
   try {
     const paired = await claimSupabaseBrowserTerminalPairing({
       codeHash: hashPairingCode(parsed.data.pairingCode),
       sessionHash: hashTerminalSessionToken(sessionToken),
+      deviceSecretHash: hashDeviceSecret(discardedDeviceSecret),
       protocolVersion: parsed.data.protocolVersion,
       clientMetadata: {
         runtime: "hosted-browser-terminal",
