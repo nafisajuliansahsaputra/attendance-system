@@ -271,9 +271,6 @@ export function OperationalTerminalKiosk() {
   const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string | null>(null);
   const [terminalStarted, setTerminalStarted] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
-  const [serialSupported, setSerialSupported] = useState(
-    () => typeof navigator !== "undefined" && Boolean(serialApi()),
-  );
   const [serialConnected, setSerialConnected] = useState(false);
   const [serialBaudRate, setSerialBaudRate] = useState(9600);
   const [stage, setStage] = useState<TerminalStage>("boot");
@@ -610,7 +607,6 @@ export function OperationalTerminalKiosk() {
   const connectSerial = useCallback(async () => {
     const api = serialApi();
     if (!api) {
-      setSerialSupported(false);
       setMessage(
         "Browser ini tidak mendukung Web Serial. Gunakan Chrome/Edge desktop atau reader USB keyboard-wedge.",
       );
@@ -1233,40 +1229,36 @@ export function OperationalTerminalKiosk() {
                   Untuk Arduino/reader serial, Chrome atau Edge dapat membaca
                   COM port langsung melalui Web Serial.
                 </p>
-                {serialSupported ? (
-                  <div className="mt-4 flex flex-wrap items-end gap-2">
-                    <label className="min-w-[120px] flex-1">
-                      <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
-                        Baud rate
-                      </span>
-                      <select
-                        value={serialBaudRate}
-                        onChange={(event) =>
-                          setSerialBaudRate(Number(event.target.value))
-                        }
-                        className="h-10 w-full rounded-xl border border-[#d7e2dc] bg-white px-3 text-xs"
-                      >
-                        <option value={9600}>9600</option>
-                        <option value={19200}>19200</option>
-                        <option value={38400}>38400</option>
-                        <option value={57600}>57600</option>
-                        <option value={115200}>115200</option>
-                      </select>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => void connectSerial()}
-                      className="h-10 rounded-xl border border-[#cfded6] bg-[#f4f7f5] px-4 text-xs font-bold text-[#355548] transition hover:bg-[#e8f1ec]"
+                <div className="mt-4 flex flex-wrap items-end gap-2">
+                  <label className="min-w-[120px] flex-1">
+                    <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">
+                      Baud rate
+                    </span>
+                    <select
+                      value={serialBaudRate}
+                      onChange={(event) =>
+                        setSerialBaudRate(Number(event.target.value))
+                      }
+                      className="h-10 w-full rounded-xl border border-[#d7e2dc] bg-white px-3 text-xs"
                     >
-                      {serialConnected ? "Reader serial terhubung" : "Hubungkan Arduino / Serial"}
-                    </button>
-                  </div>
-                ) : (
-                  <p className="mt-3 rounded-xl bg-[#f4f7f5] px-3 py-2.5 text-xs text-slate-500">
-                    Web Serial tidak tersedia di browser ini. Gunakan Chrome/Edge
-                    desktop atau reader USB mode keyboard.
-                  </p>
-                )}
+                      <option value={9600}>9600</option>
+                      <option value={19200}>19200</option>
+                      <option value={38400}>38400</option>
+                      <option value={57600}>57600</option>
+                      <option value={115200}>115200</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => void connectSerial()}
+                    className="h-10 rounded-xl border border-[#cfded6] bg-[#f4f7f5] px-4 text-xs font-bold text-[#355548] transition hover:bg-[#e8f1ec]"
+                  >
+                    {serialConnected ? "Reader serial terhubung" : "Hubungkan Arduino / Serial"}
+                  </button>
+                </div>
+                <p className="mt-2 text-[10px] leading-4 text-slate-400">
+                  Web Serial memerlukan Chrome/Edge desktop. Reader USB mode keyboard tidak perlu pairing COM port.
+                </p>
               </div>
             ) : null}
 
