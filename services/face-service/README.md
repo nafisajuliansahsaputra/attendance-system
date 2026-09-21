@@ -1,6 +1,6 @@
-# Local Face Verification Service
+# Face Verification Service
 
-Private biometric inference boundary for Attendance System V1. It performs face processing locally/server-side instead of sending student samples to a third-party recognition API.
+Private biometric inference boundary for Attendance System V1. It performs face processing server-side instead of sending student samples to a third-party recognition API.
 
 ## V1 behavior
 
@@ -15,9 +15,33 @@ Private biometric inference boundary for Attendance System V1. It performs face 
 - `face_detection_yunet_2026may.onnx`
 - `face_recognition_sface_2021dec.onnx`
 
-The binaries are Git-ignored. `scripts/download_models.py` downloads them from the official OpenCV Zoo Git LFS media endpoint and verifies the SHA-256 object IDs published in OpenCV Zoo before installing them.
+The binaries are Git-ignored. `scripts/download_models.py` downloads them from the official OpenCV Zoo Git LFS media endpoint and verifies their pinned SHA-256 and byte sizes before use.
 
-CI also downloads, verifies, and loads both models through OpenCV so stale URLs or incompatible model files fail the build.
+CI downloads, verifies, and loads both models through OpenCV so stale URLs or incompatible model files fail the build.
+
+## Vercel deployment
+
+This directory is deployable as its own Vercel project while the Next.js application remains a separate Vercel project from the repository root.
+
+Use these project settings:
+
+- Repository: `nafisajuliansahsaputra/attendance-system`
+- Root Directory: `services/face-service`
+- Runtime/framework: FastAPI / Python
+- Production environment variable: `FACE_SERVICE_SECRET`
+- Optional tuning variables: see `.env.example`
+
+The included `vercel.json` downloads and verifies the pinned YuNet + SFace models during the build and gives the FastAPI function up to 60 seconds per invocation.
+
+After deployment, verify:
+
+```text
+GET https://<face-project>.vercel.app/health
+```
+
+The response should report `status: "ok"`, `detectorModelPresent: true`, and `recognizerModelPresent: true`.
+
+Then set the root Next.js project's `FACE_SERVICE_URL` to the face project's production URL and use the same `FACE_SERVICE_SECRET` in both projects.
 
 ## Local setup
 
