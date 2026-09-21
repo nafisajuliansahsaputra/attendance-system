@@ -14,6 +14,15 @@ const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
+const PRESENTATION_DEVICE: DeviceIdentity = {
+  id: "00000000-0000-4000-8000-000000000012",
+  code: "A12-GERBANG-01",
+  name: "Terminal Gerbang Utama",
+  deviceType: "ARDUINO_BRIDGE",
+  protocolVersion: "v1",
+  location: "Gerbang Utama",
+};
+
 type TerminalStage =
   | "boot"
   | "idle"
@@ -247,7 +256,11 @@ async function playTerminalBeep(tone: OperationalTerminalTone) {
   window.setTimeout(() => void context.close(), count * 180 + 100);
 }
 
-export function OperationalTerminalKiosk() {
+export function OperationalTerminalKiosk({
+  presentationMode = false,
+}: {
+  presentationMode?: boolean;
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -261,14 +274,17 @@ export function OperationalTerminalKiosk() {
     useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
   const serialReadingRef = useRef(false);
 
-  const [pairingState, setPairingState] =
-    useState<PairingState>("checking");
+  const [pairingState, setPairingState] = useState<PairingState>(
+    presentationMode ? "paired" : "checking",
+  );
   const [pairingCode, setPairingCode] = useState("");
   const [pairingPending, setPairingPending] = useState(false);
   const [pairingError, setPairingError] = useState<string | null>(null);
-  const [device, setDevice] = useState<DeviceIdentity | null>(null);
-  const [serverOnline, setServerOnline] = useState(false);
-  const [faceServiceReady, setFaceServiceReady] = useState(false);
+  const [device, setDevice] = useState<DeviceIdentity | null>(
+    presentationMode ? PRESENTATION_DEVICE : null,
+  );
+  const [serverOnline, setServerOnline] = useState(presentationMode);
+  const [faceServiceReady, setFaceServiceReady] = useState(presentationMode);
   const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string | null>(null);
   const [terminalStarted, setTerminalStarted] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
@@ -280,7 +296,9 @@ export function OperationalTerminalKiosk() {
   const [session, setSession] = useState<SessionIdentity | null>(null);
   const [resultCode, setResultCode] = useState<string | null>(null);
   const [message, setMessage] = useState(
-    "Memeriksa sesi terminal dengan server produksi.",
+    presentationMode
+      ? "Sesi terminal aktif. Nyalakan kamera untuk memulai terminal absensi."
+      : "Memeriksa sesi terminal dengan server produksi.",
   );
   const [faceAttempt, setFaceAttempt] = useState(0);
   const [lastRfidUid, setLastRfidUid] = useState<string | null>(null);
@@ -518,6 +536,8 @@ export function OperationalTerminalKiosk() {
 
   const submitRfid = useCallback(
     async (uid: string, source = "keyboard-wedge") => {
+      if (presentationMode) return;
+
       const normalized = normalizeSerialUid(uid);
 
       if (
@@ -583,6 +603,7 @@ export function OperationalTerminalKiosk() {
       finishResult,
       handleCardResult,
       paired,
+      presentationMode,
       serverOnline,
       terminalStarted,
     ],
@@ -667,6 +688,8 @@ export function OperationalTerminalKiosk() {
   }, [disconnectSerial, serialBaudRate, submitRfid]);
 
   const refreshProductionStatus = useCallback(async () => {
+    if (presentationMode) return;
+
     try {
       const [heartbeatResponse, healthResponse] = await Promise.all([
         fetch("/api/device/v1/heartbeat", {
@@ -738,7 +761,13 @@ export function OperationalTerminalKiosk() {
         setMessage("Server produksi tidak dapat dihubungi.");
       }
     }
-  }, [cameraReady, serialConnected, stage, terminalStarted]);
+  }, [
+    cameraReady,
+    presentationMode,
+    serialConnected,
+    stage,
+    terminalStarted,
+  ]);
 
   const pairHostedTerminal = useCallback(async () => {
     const code = pairingCode.trim();
@@ -823,6 +852,9 @@ export function OperationalTerminalKiosk() {
       setTerminalStarted(true);
       setStage("idle");
       setMessage("Tempelkan kartu RFID pada reader.");
+      if (presentationMode) {
+        setLastHeartbeatAt(new Date().toISOString());
+      }
 
       if (!document.fullscreenElement) {
         await document.documentElement.requestFullscreen().catch(() => undefined);
@@ -835,7 +867,7 @@ export function OperationalTerminalKiosk() {
         "Kamera tidak dapat dibuka. Berikan izin kamera pada browser lalu coba lagi.",
       );
     }
-  }, [paired]);
+  }, [paired, presentationMode]);
 
   const stopTerminal = useCallback(() => {
     clearTimers();
@@ -864,12 +896,18 @@ export function OperationalTerminalKiosk() {
 
   useEffect(() => {
     const timer = window.setInterval(() => {
-      setClock(new Date());
+      const now = new Date();
+      setClock(now);
+      if (presentationMode && terminalStarted) {
+        setLastHeartbeatAt(now.toISOString());
+      }
     }, 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [presentationMode, terminalStarted]);
 
   useEffect(() => {
+    if (presentationMode) return;
+
     const initialTimer = window.setTimeout(
       () => void refreshProductionStatus(),
       0,
@@ -883,7 +921,7 @@ export function OperationalTerminalKiosk() {
       window.clearTimeout(initialTimer);
       window.clearInterval(heartbeatTimer);
     };
-  }, [refreshProductionStatus]);
+  }, [presentationMode, refreshProductionStatus]);
 
   useEffect(() => {
     if (!terminalStarted || !paired) return;
