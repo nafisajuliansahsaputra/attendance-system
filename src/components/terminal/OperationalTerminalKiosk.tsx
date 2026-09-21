@@ -869,13 +869,19 @@ export function OperationalTerminalKiosk() {
   }, []);
 
   useEffect(() => {
-    void refreshProductionStatus();
-    const timer = window.setInterval(
+    const initialTimer = window.setTimeout(
+      () => void refreshProductionStatus(),
+      0,
+    );
+    const heartbeatTimer = window.setInterval(
       () => void refreshProductionStatus(),
       HEARTBEAT_INTERVAL_MS,
     );
 
-    return () => window.clearInterval(timer);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(heartbeatTimer);
+    };
   }, [refreshProductionStatus]);
 
   useEffect(() => {
