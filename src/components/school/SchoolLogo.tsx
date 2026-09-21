@@ -1,4 +1,5 @@
 import Image from "next/image";
+import schoolLogo from "../../../public/brand/amaliah-logo.webp";
 import { SCHOOL } from "@/config/school";
 
 interface SchoolLogoProps {
@@ -18,7 +19,7 @@ export function SchoolLogo({
       style={{ width: size, height: size }}
     >
       <Image
-        src="/brand/amaliah-logo.webp"
+        src={schoolLogo}
         alt={`Logo ${SCHOOL.name}`}
         width={size}
         height={size}
