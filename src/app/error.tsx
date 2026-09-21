@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect } from "react";
+import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
 
 export default function ErrorPage({
@@ -18,9 +19,7 @@ export default function ErrorPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-5 py-12 sm:px-8">
       <section className="w-full max-w-xl rounded-[2rem] border border-[var(--border)] bg-white p-7 text-center shadow-xl shadow-black/5 sm:p-10">
-        <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-[var(--success)] text-sm font-bold text-white">
-          A12
-        </span>
+        <SchoolLogo size={56} className="mx-auto rounded-2xl" />
         <p className="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-[var(--success)]">
           {SCHOOL.name}
         </p>
