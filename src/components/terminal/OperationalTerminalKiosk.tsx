@@ -1015,10 +1015,10 @@ export function OperationalTerminalKiosk() {
   const promptStyle = toneClasses(prompt.tone);
 
   return (
-    <main className="min-h-dvh bg-[#eef3f0] p-3 text-[#183029] sm:p-4 lg:h-dvh lg:overflow-hidden lg:p-5">
+    <main className="h-dvh w-screen overflow-hidden bg-[#eef3f0] text-[#183029]">
       <canvas ref={canvasRef} className="hidden" aria-hidden="true" />
 
-      <div className="mx-auto flex min-h-[calc(100dvh-1.5rem)] w-full max-w-[1720px] flex-col overflow-hidden rounded-[28px] border border-[#cddbd3] bg-white shadow-[0_24px_80px_rgba(15,43,32,0.12)] sm:min-h-[calc(100dvh-2rem)] lg:h-[calc(100dvh-2.5rem)] lg:min-h-0">
+      <div className="flex h-full w-full flex-col overflow-hidden bg-white">
         <header className="flex flex-wrap items-center justify-between gap-4 bg-[#174e39] px-5 py-4 text-white sm:px-7">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-white text-sm font-black text-[#174e39]">
