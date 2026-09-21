@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ProtectedPortalButton } from "@/components/public/ProtectedPortalButton";
+import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
 
 const foundations = [
@@ -34,9 +35,7 @@ export default function HomePage() {
       <div className="flex min-h-screen w-full flex-col px-4 py-4 sm:px-6 lg:h-dvh lg:min-h-0 lg:px-8 lg:py-5">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-4 rounded-2xl border border-[var(--border)] bg-white/90 px-5 py-3.5 shadow-sm backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
-            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[var(--success)] text-sm font-bold text-white">
-              A12
-            </span>
+            <SchoolLogo size={44} priority />
             <div>
               <p className="text-sm font-semibold">{SCHOOL.name}</p>
               <p className="text-xs text-[var(--muted)]">{SCHOOL.systemName}</p>
