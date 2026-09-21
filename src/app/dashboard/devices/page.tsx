@@ -65,7 +65,7 @@ function deviceStatusLabel(status: AdminDeviceStatus) {
 }
 
 function deviceTypeLabel(type: string) {
-  if (type === "ARDUINO_BRIDGE") return "Penghubung Arduino";
+  if (type === "ARDUINO_BRIDGE") return "Arduino / Serial";
   if (type === "ESP32") return "ESP32";
   if (type === "SIMULATOR") return "Simulasi";
   return "Perangkat lainnya";
@@ -148,7 +148,7 @@ export default async function DeviceManagementPage({ searchParams }: DevicePageP
               Perangkat & Terminal Absensi
             </h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-emerald-50/65">
-              Daftarkan terminal, lakukan pairing satu kali, pantau heartbeat, rotasi kredensial,
+              Daftarkan terminal, lakukan pairing satu kali, pantau heartbeat, rotasi akses,
               dan cabut akses perangkat dari satu tempat.
             </p>
           </div>
@@ -174,7 +174,7 @@ export default async function DeviceManagementPage({ searchParams }: DevicePageP
         <Metric label="Terminal terdaftar" value={devices.length} detail="Seluruh terminal pada institusi" />
         <Metric label="Status aktif" value={active} detail="Diizinkan mengirim transaksi" />
         <Metric label="Online sekarang" value={online} detail="Aktivitas diterima dalam 90 detik terakhir" />
-        <Metric label="Kredensial aktif" value={`${configured}/${devices.length}`} detail="Terminal sudah menyelesaikan pairing" />
+        <Metric label="Akses terminal" value={`${configured}/${devices.length}`} detail="Terminal sudah menyelesaikan pairing production" />
         <Metric label="Gangguan 24 jam" value={recentErrors} detail="Error perangkat yang tercatat" />
       </section>
 
@@ -201,7 +201,7 @@ export default async function DeviceManagementPage({ searchParams }: DevicePageP
             <label>
               <span className="mb-2 block text-xs font-bold text-[#355548]">Jenis perangkat</span>
               <select name="deviceType" defaultValue="ARDUINO_BRIDGE" className="h-12 w-full rounded-xl border border-[#d7e2dc] bg-white px-3 text-sm outline-none">
-                <option value="ARDUINO_BRIDGE">Penghubung Arduino</option>
+                <option value="ARDUINO_BRIDGE">Arduino / Serial</option>
                 <option value="ESP32">ESP32</option>
                 <option value="SIMULATOR">Simulasi</option>
                 <option value="OTHER">Perangkat lainnya</option>
@@ -283,7 +283,7 @@ export default async function DeviceManagementPage({ searchParams }: DevicePageP
                     ["Heartbeat terakhir", dateTimeLabel(device.lastHeartbeatAt)],
                     ["Aktivitas terakhir", dateTimeLabel(device.lastEventAt ?? device.lastSeenAt)],
                     ["Absensi terakhir", dateTimeLabel(device.lastAttendanceAt)],
-                    ["Kredensial", device.secretConfigured ? "Terpasang" : "Belum terpasang"],
+                    ["Akses", device.secretConfigured ? "Terpasang" : "Belum terpasang"],
                   ].map(([label, value]) => (
                     <div key={label} className="rounded-xl bg-[#f7f9f8] px-4 py-3">
                       <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-slate-400">{label}</p>
@@ -327,8 +327,8 @@ export default async function DeviceManagementPage({ searchParams }: DevicePageP
           {[
             ["01 · Registrasi", "Admin membuat identitas terminal dan menentukan lokasi."],
             ["02 · Pairing", "Kode acak sekali pakai berlaku 10 menit dan tidak disimpan dalam bentuk plaintext."],
-            ["03 · Operasional", "Device ID + secret digunakan untuk heartbeat dan transaksi absensi."],
-            ["04 · Rotasi / revoke", "Kredensial dapat dirotasi lewat pairing ulang atau dicabut permanen oleh admin."],
+            ["03 · Operasional", "Terminal browser memakai session HttpOnly production; controller headless tetap dapat memakai credential device."],
+            ["04 · Rotasi / revoke", "Akses terminal dapat dirotasi lewat pairing ulang atau dicabut permanen oleh admin."],
           ].map(([title, description]) => (
             <div key={title} className="rounded-2xl border border-[#dbe5df] bg-white p-4">
               <p className="text-xs font-bold text-[#24483a]">{title}</p>
