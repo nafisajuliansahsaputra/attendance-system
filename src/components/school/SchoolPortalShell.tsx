@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
+import { SchoolLogo } from "./SchoolLogo";
 import { SCHOOL, roleLabel } from "@/config/school";
 
 type PortalMode = "management" | "teacher";
