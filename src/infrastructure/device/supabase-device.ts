@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ClaimDevicePairingResult } from "../../application/admin/device-types";
 import type { DeviceStageEventType } from "../../application/device/card-stage";
 import { callSupabaseAdminRpc } from "../supabase/admin-rest";
 
@@ -15,6 +16,23 @@ const verificationTransactionSchema = z.object({
   transactionId: z.string().uuid(),
   expiresAt: z.string().min(1),
   occurrenceId: z.string().uuid(),
+});
+
+const claimPairingSchema = z.object({
+  deviceId: z.string().uuid(),
+  institutionId: z.string().uuid(),
+  code: z.string().min(1),
+  name: z.string().min(1),
+  deviceType: z.enum(["SIMULATOR", "ARDUINO_BRIDGE", "ESP32", "OTHER"]),
+  protocolVersion: z.string().min(1),
+  location: z.string().nullable().optional(),
+  pairedAt: z.string().min(1),
+  credentialRotated: z.boolean(),
+});
+
+const heartbeatSchema = z.object({
+  deviceId: z.string().uuid(),
+  lastHeartbeatAt: z.string().min(1),
 });
 
 export type AuthenticatedDevice = z.infer<typeof authenticatedDeviceSchema>;
@@ -34,6 +52,39 @@ export async function authenticateSupabaseDevice(input: {
   });
 
   return authenticatedDeviceSchema.parse(raw);
+}
+
+export async function claimSupabaseDevicePairing(input: {
+  codeHash: string;
+  secretHash: string;
+  protocolVersion: string;
+  clientMetadata?: Record<string, unknown>;
+}): Promise<ClaimDevicePairingResult> {
+  const raw = await callSupabaseAdminRpc<unknown>("claim_device_pairing", {
+    p_code_hash: input.codeHash,
+    p_secret_hash: input.secretHash,
+    p_protocol_version: input.protocolVersion,
+    p_client_metadata: input.clientMetadata ?? {},
+  });
+
+  const parsed = claimPairingSchema.parse(raw);
+
+  return {
+    ...parsed,
+    location: parsed.location ?? undefined,
+  };
+}
+
+export async function recordSupabaseDeviceHeartbeat(input: {
+  deviceId: string;
+  metadata?: Record<string, unknown>;
+}): Promise<{ deviceId: string; lastHeartbeatAt: string }> {
+  const raw = await callSupabaseAdminRpc<unknown>("record_device_heartbeat", {
+    p_device_id: input.deviceId,
+    p_metadata: input.metadata ?? {},
+  });
+
+  return heartbeatSchema.parse(raw);
 }
 
 export async function materializeSupabaseScheduleAt(input: {
