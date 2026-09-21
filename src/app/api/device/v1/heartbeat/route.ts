@@ -49,6 +49,13 @@ export async function POST(request: Request) {
       protocolVersion: device.protocolVersion,
       lastHeartbeatAt: heartbeat.lastHeartbeatAt,
       serverTime: new Date().toISOString(),
+      device: {
+        id: device.deviceId,
+        code: device.code,
+        name: device.name,
+        deviceType: device.deviceType,
+        protocolVersion: device.protocolVersion,
+      },
     });
   } catch (error) {
     if (error instanceof DeviceAuthenticationError) {

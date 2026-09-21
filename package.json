@@ -16,7 +16,9 @@
     "device:rotate-secret": "node scripts/provision-device-secret.mjs",
     "device:rotate-secret:env": "node --env-file=.env.local scripts/provision-device-secret.mjs",
     "device:pair": "node scripts/pair-device.mjs",
-    "device:pair:env": "node --env-file=.env.device.pairing scripts/pair-device.mjs"
+    "device:pair:env": "node --env-file=.env.device.pairing scripts/pair-device.mjs",
+    "device:bridge": "node scripts/device-terminal-bridge.mjs",
+    "device:bridge:env": "node --env-file=.env.device scripts/device-terminal-bridge.mjs"
   },
   "engines": {
     "node": ">=22.0.0"
