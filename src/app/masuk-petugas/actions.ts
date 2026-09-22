@@ -22,17 +22,13 @@ export async function login(formData: FormData) {
   }
 
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { data, error } = await supabase.auth.signInWithPassword(parsed.data);
 
   if (error) {
     redirect("/masuk-petugas?error=credentials");
   }
 
-  const { data: claimsData, error: claimsError } = await supabase.auth.getClaims();
-  const userId =
-    !claimsError && typeof claimsData?.claims?.sub === "string"
-      ? claimsData.claims.sub
-      : null;
+  const userId = data.user?.id ?? null;
 
   if (!userId) {
     await supabase.auth.signOut();
