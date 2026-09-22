@@ -1384,11 +1384,6 @@ export function OperationalTerminalKiosk({
                 </div>
               </div>
 
-              <p className="mt-4 text-center text-[10px] leading-4 text-slate-400">
-                Semua API, database, pairing, heartbeat, dan face verification
-                berjalan di production. Laptop hanya memberi akses ke kamera dan
-                reader RFID fisik melalui browser.
-              </p>
             </div>
           </aside>
         </div>
