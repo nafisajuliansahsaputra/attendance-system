@@ -13,7 +13,7 @@ import { SCHOOL } from "@/config/school";
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const PORTFOLIO_CAMERA_PREVIEW = "/api/portfolio-preview";
+const PORTFOLIO_CAMERA_PREVIEW = "/portfolio-preview.webp";
 
 const PRESENTATION_DEVICE: DeviceIdentity = {
   id: "00000000-0000-4000-8000-000000000012",
@@ -1115,12 +1115,7 @@ export function OperationalTerminalKiosk({
                 <img
                   src={PORTFOLIO_CAMERA_PREVIEW}
                   alt="Preview kamera siswa untuk tampilan portfolio"
-                  className="h-full min-h-[520px] w-full object-cover lg:min-h-0"
-                  style={{
-                    objectPosition: "46% 43%",
-                    transform: "scale(1.08)",
-                    transformOrigin: "center center",
-                  }}
+                  className="h-full min-h-[520px] w-full object-cover object-center lg:min-h-0"
                 />
               ) : (
                 <video
