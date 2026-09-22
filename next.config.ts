@@ -13,9 +13,6 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
-  outputFileTracingIncludes: {
-    "/api/portfolio-preview": ["./src/assets/portfolio-student-preview.webp"],
-  },
   async headers() {
     return [
       {
