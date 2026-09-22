@@ -286,7 +286,7 @@ export function OperationalTerminalKiosk({
   const [serverOnline, setServerOnline] = useState(presentationMode);
   const [faceServiceReady, setFaceServiceReady] = useState(presentationMode);
   const [lastHeartbeatAt, setLastHeartbeatAt] = useState<string | null>(null);
-  const [terminalStarted, setTerminalStarted] = useState(false);
+  const [terminalStarted, setTerminalStarted] = useState(presentationMode);
   const [cameraReady, setCameraReady] = useState(false);
   const [serialConnected, setSerialConnected] = useState(false);
   const [serialBaudRate, setSerialBaudRate] = useState(9600);
@@ -869,6 +869,16 @@ export function OperationalTerminalKiosk({
     }
   }, [paired, presentationMode]);
 
+  useEffect(() => {
+    if (!presentationMode || cameraReady || streamRef.current) return;
+
+    const cameraTimer = window.setTimeout(() => {
+      void startCamera();
+    }, 250);
+
+    return () => window.clearTimeout(cameraTimer);
+  }, [cameraReady, presentationMode, startCamera]);
+
   const stopTerminal = useCallback(() => {
     clearTimers();
     streamRef.current?.getTracks().forEach((track) => track.stop());
@@ -1083,13 +1093,15 @@ export function OperationalTerminalKiosk({
             />
             <StatusChip
               label="RFID"
-              ready={paired && terminalStarted}
+              ready={paired && (terminalStarted || presentationMode)}
               detail={
-                serialConnected
-                  ? "Serial terhubung"
-                  : terminalStarted
-                    ? "Keyboard-wedge siap"
-                    : "Belum aktif"
+                presentationMode
+                  ? "Keyboard-wedge siap"
+                  : serialConnected
+                    ? "Serial terhubung"
+                    : terminalStarted
+                      ? "Keyboard-wedge siap"
+                      : "Belum aktif"
               }
             />
             <StatusChip
