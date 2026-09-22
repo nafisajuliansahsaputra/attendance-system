@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isAcceptedAttendanceCode,
@@ -9,7 +10,7 @@ import {
 } from "@/application/device/operational-terminal";
 import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
-import portfolioStudentPreview from "@/assets/portfolio-student-preview.webp";
+import portfolioStudentPreview from "@/assets/portfolio-student-preview.jpg";
 
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
@@ -1112,10 +1113,13 @@ export function OperationalTerminalKiosk({
           <section className="flex min-h-[520px] flex-col border-b border-[#dbe5df] bg-[#0d1d17] lg:min-h-0 lg:border-b-0 lg:border-r">
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {presentationMode ? (
-                <img
-                  src={portfolioStudentPreview.src}
+                <Image
+                  src={portfolioStudentPreview}
                   alt="Preview kamera siswa untuk tampilan portfolio"
-                  className="h-full min-h-[520px] w-full object-cover object-center lg:min-h-0"
+                  fill
+                  priority
+                  sizes="68vw"
+                  className="object-cover object-center"
                 />
               ) : (
                 <video
