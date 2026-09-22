@@ -1181,7 +1181,7 @@ export function OperationalTerminalKiosk({
                     </span>
                   </div>
                 </>
-              ) : null}
+              )}
             </div>
           </section>
 
