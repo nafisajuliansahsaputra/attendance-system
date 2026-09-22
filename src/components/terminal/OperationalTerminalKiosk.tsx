@@ -9,11 +9,11 @@ import {
 } from "@/application/device/operational-terminal";
 import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
+import portfolioStudentPreview from "@/assets/portfolio-student-preview.webp";
 
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const PORTFOLIO_CAMERA_PREVIEW = "/terminal/portfolio-student-preview.webp";
 
 const PRESENTATION_DEVICE: DeviceIdentity = {
   id: "00000000-0000-4000-8000-000000000012",
@@ -1113,7 +1113,7 @@ export function OperationalTerminalKiosk({
             <div className="relative min-h-0 flex-1 overflow-hidden">
               {presentationMode ? (
                 <img
-                  src={PORTFOLIO_CAMERA_PREVIEW}
+                  src={portfolioStudentPreview.src}
                   alt="Preview kamera siswa untuk tampilan portfolio"
                   className="h-full min-h-[520px] w-full object-cover object-center lg:min-h-0"
                 />
@@ -1153,7 +1153,7 @@ export function OperationalTerminalKiosk({
                     </button>
                   </div>
                 </div>
-              ) : (
+              ) : !presentationMode ? (
                 <>
                   <div className="pointer-events-none absolute inset-0 grid place-items-center">
                     <div
@@ -1181,7 +1181,7 @@ export function OperationalTerminalKiosk({
                     </span>
                   </div>
                 </>
-              )}
+              ) : null}
             </div>
           </section>
 
