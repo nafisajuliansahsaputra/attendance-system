@@ -1,36 +1,7 @@
-import { readFile } from "node:fs/promises";
-import path from "node:path";
+const PORTFOLIO_PREVIEW_URL = "https://d2jqrm6oza8nb6.cloudfront.net/datasets/d85573f8-b6c9-4905-8fed-fd3232be52da.jpg?_jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXlIYXNoIjoiMjI2YzNhNTFkN2NiNzgwYiIsImJ1Y2tldCI6InJ1bndheS1kYXRhc2V0cyIsInN0YWdlIjoicHJvZCIsImV4cCI6MTc5MDIyODU2MX0.H7E5BzhzuwXo643QOAfaZP58gO8tpbOUzTe_DXgpmLM";
 
-export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  try {
-    const imagePath = path.join(
-      process.cwd(),
-      "src",
-      "assets",
-      "portfolio-student-preview.webp",
-    );
-
-    const image = await readFile(imagePath);
-
-    return new Response(image, {
-      status: 200,
-      headers: {
-        "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000, immutable",
-      },
-    });
-  } catch (error) {
-    console.error("Portfolio preview image failed to load", error);
-
-    return new Response("Portfolio preview unavailable", {
-      status: 500,
-      headers: {
-        "Content-Type": "text/plain; charset=utf-8",
-        "Cache-Control": "no-store",
-      },
-    });
-  }
+  return Response.redirect(PORTFOLIO_PREVIEW_URL, 307);
 }
