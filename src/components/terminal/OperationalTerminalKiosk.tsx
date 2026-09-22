@@ -1115,7 +1115,7 @@ export function OperationalTerminalKiosk({
                 <img
                   src={PORTFOLIO_CAMERA_PREVIEW}
                   alt="Preview kamera siswa untuk tampilan portfolio"
-                  className="h-full min-h-[520px] w-full object-cover object-center [image-rendering:auto] lg:min-h-0"
+                  className="h-full min-h-[520px] w-full object-cover object-center lg:min-h-0"
                 />
               ) : (
                 <video
@@ -1153,7 +1153,7 @@ export function OperationalTerminalKiosk({
                     </button>
                   </div>
                 </div>
-              ) : presentationMode ? null : (
+              ) : !presentationMode ? (
                 <>
                   <div className="pointer-events-none absolute inset-0 grid place-items-center">
                     <div
