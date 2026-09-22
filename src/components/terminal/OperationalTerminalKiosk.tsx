@@ -1117,8 +1117,8 @@ export function OperationalTerminalKiosk({
                   alt="Preview kamera siswa untuk tampilan portfolio"
                   className="h-full min-h-[520px] w-full object-cover lg:min-h-0"
                   style={{
-                    objectPosition: "center center",
-                    transform: "translateY(5.5%) scale(1.04)",
+                    objectPosition: "46% 43%",
+                    transform: "scale(1.08)",
                     transformOrigin: "center center",
                   }}
                 />
