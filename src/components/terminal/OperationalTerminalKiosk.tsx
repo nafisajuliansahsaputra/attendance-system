@@ -1115,7 +1115,12 @@ export function OperationalTerminalKiosk({
                 <img
                   src={PORTFOLIO_CAMERA_PREVIEW}
                   alt="Preview kamera siswa untuk tampilan portfolio"
-                  className="h-full min-h-[520px] w-full object-cover object-center lg:min-h-0"
+                  className="h-full min-h-[520px] w-full object-cover lg:min-h-0"
+                  style={{
+                    objectPosition: "center 22%",
+                    transform: "scale(1.08)",
+                    transformOrigin: "center center",
+                  }}
                 />
               ) : (
                 <video
