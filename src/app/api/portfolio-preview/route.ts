@@ -19,7 +19,7 @@ export async function GET() {
       status: 200,
       headers: {
         "Content-Type": "image/webp",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": "no-store, max-age=0",
       },
     });
   } catch (error) {
