@@ -13,7 +13,7 @@ import { SCHOOL } from "@/config/school";
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const PORTFOLIO_CAMERA_PREVIEW = "/api/portfolio-preview?v=final-20260922-2";
+const PORTFOLIO_CAMERA_PREVIEW = "/api/portfolio-preview?v=final-layer2-20260922";
 
 const PRESENTATION_DEVICE: DeviceIdentity = {
   id: "00000000-0000-4000-8000-000000000012",
