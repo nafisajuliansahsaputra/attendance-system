@@ -9,11 +9,12 @@ import {
 } from "@/application/device/operational-terminal";
 import { SchoolLogo } from "@/components/school/SchoolLogo";
 import { SCHOOL } from "@/config/school";
+import portfolioStudentPreview from "@/assets/portfolio-student-preview.jpg";
 
 const RESULT_RESET_MS = 4500;
 const MAX_FACE_ATTEMPTS = 4;
 const HEARTBEAT_INTERVAL_MS = 30_000;
-const PORTFOLIO_CAMERA_PREVIEW = "/portfolio-preview.webp?v=final-local-20260924";
+const PORTFOLIO_CAMERA_PREVIEW = portfolioStudentPreview.src;
 
 const PRESENTATION_DEVICE: DeviceIdentity = {
   id: "00000000-0000-4000-8000-000000000012",
